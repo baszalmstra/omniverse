@@ -1,0 +1,8 @@
+[package]
+name = "omniverse"
+version = "0.1.0"
+authors = ["Bas Zalmstra <zalmstra.bas@gmail.com>"]
+
+[dependencies]
+glium = "0.22"
+nalgebra = "0.16"
