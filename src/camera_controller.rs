@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use transform::{Transformer, Transformable};
+use transform::{Transformer};
 use glium::glutin::KeyboardInput;
 
 pub struct CameraController<'a> {
