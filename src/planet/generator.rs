@@ -50,7 +50,7 @@ impl GeometryProvider for Generator {
         let mut positions:Vec<Point3<f64>> = Vec::with_capacity(VERTICES_PER_PATCH*VERTICES_PER_PATCH);
         for y in 0..VERTICES_PER_PATCH {
             for x in 0..VERTICES_PER_PATCH {
-                let local_position = Vector2::<f64>::new(x as f64 * vertex_step - 0.5,y as f64 * vertex_step - 0.5) * 2.0;
+                let local_position = Vector2::<f64>::new(x as f64 * vertex_step - 0.5 + patch.offset.x ,y as f64 * vertex_step - 0.5 + patch.offset.y) * 2.0;
                 positions.push(self.compute_vertex(local_position.x, local_position.y, &patch));
             }
         };
@@ -60,7 +60,7 @@ impl GeometryProvider for Generator {
         let mut normals:Vec<Vector3<f64>> = Vec::with_capacity(NORMALS_PER_PATCH*NORMALS_PER_PATCH);
         for y in 0..NORMALS_PER_PATCH {
             for x in 0..NORMALS_PER_PATCH {
-                let local_position = Vector2::<f64>::new(x as f64 * normal_step - 0.5,y as f64 * normal_step - 0.5) * 2.0;
+                let local_position = Vector2::<f64>::new(x as f64 * normal_step - 0.5 + patch.offset.x, y as f64 * normal_step - 0.5 + patch.offset.y) * 2.0;
                 normals.push(self.compute_normal(local_position.x, local_position.y, &patch));
             }
         };
