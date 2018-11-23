@@ -1,6 +1,6 @@
 pub type Transform = nalgebra::Isometry3<f64>;
 
-pub trait Transformable:Sized {
+pub trait Transformable {
     fn transform(&self) -> &Transform;
     fn transform_mut(&mut self) -> &mut Transform;
 
@@ -8,4 +8,9 @@ pub trait Transformable:Sized {
         self.transform_mut().append_translation_mut(&nalgebra::Translation3::from(*translation));
         self
     }
+}
+
+impl Transformable for Transform {
+    fn transform(&self) -> &Transform { self }
+    fn transform_mut(&mut self) -> &mut Transform { self }
 }

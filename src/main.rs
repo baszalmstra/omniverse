@@ -5,10 +5,9 @@ extern crate nalgebra;
 use crate::camera::Camera;
 use nalgebra::Vector3;
 use crate::camera_controller::CameraController;
-use crate::transform::Transformable;
+use crate::transform::{Transform, Transformable};
 
 mod planet;
-mod planet_renderer;
 mod camera;
 mod camera_controller;
 mod frustum;
@@ -73,6 +72,13 @@ fn main() {
     let mut camera = Camera::new();
     camera.translate_by(&Vector3::new(0.0, 0.0, -2.0));
 
+    let planet_transform = Transform::identity();
+    let planet_renderer = planet::Renderer::new(&display,
+                                                planet::Description {
+                                                    radius: 1.0
+                                                })
+        .expect("Could not instantiate renderer");
+
     let mut camera_controller = CameraController::new();
 
     let mut closed = false;
@@ -82,6 +88,8 @@ fn main() {
         timeline.next_frame();
 
         camera_controller.tick(timeline.previous_frame_time(), &mut camera);
+
+        rotation += timeline.previous_frame_time();
 
         let mut frame = display.draw();
         let frame_size = frame.get_dimensions();
@@ -96,7 +104,10 @@ fn main() {
                 nalgebra::Matrix4::from_euler_angles(0.0,rotation,0.0))
         };
 
-        frame.draw(&vertex_buffer, &indices, &program, &triangle_uniforms, &Default::default()).unwrap();
+        //frame.draw(&vertex_buffer, &indices, &program, &triangle_uniforms, &Default::default()).unwrap();
+
+        planet_renderer.draw(&mut frame, &frustum, &planet_transform);
+
         frame.finish().unwrap();
 
         events_loop.poll_events(|ev| {
