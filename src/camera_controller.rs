@@ -2,7 +2,7 @@ use nalgebra::Vector3;
 use nalgebra::Vector2;
 use crate::transform::Transformable;
 use glium::glutin::KeyboardInput;
-use glium::glutin::dpi::PhysicalPosition;
+use glium::glutin::dpi::LogicalPosition;
 use transform::Rotation;
 
 pub struct CameraController {
@@ -47,7 +47,7 @@ impl CameraController {
         }
     }
 
-    pub fn mouse_moved(&mut self, _position: &PhysicalPosition, delta_position: &PhysicalPosition) {
+    pub fn mouse_moved(&mut self, _position: &LogicalPosition, delta_position: &LogicalPosition) {
         self.delta_mouse_position = Vector2::new(delta_position.x, delta_position.y);
     }
 

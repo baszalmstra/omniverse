@@ -81,7 +81,7 @@ fn main() {
     let rotation: f32 = 0.0;
 
     let mut left_mouse_pressed = false;
-    let mut last_mouse_position = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
+    let mut last_mouse_position = glutin::dpi::LogicalPosition::new(0.0, 0.0);
 
     while !closed {
         timeline.next_frame();
@@ -120,13 +120,12 @@ fn main() {
                         left_mouse_pressed = false;
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        let physical_postion = position.to_physical(dpi);
 
-                        let delta_position = glutin::dpi::PhysicalPosition::new(physical_postion.x - last_mouse_position.x, physical_postion.y - last_mouse_position.y);
-                        last_mouse_position = physical_postion;
+                        let delta_position = glutin::dpi::LogicalPosition::new(position.x - last_mouse_position.x, position.y - last_mouse_position.y);
+                        last_mouse_position = position;
 
                         if left_mouse_pressed {
-                            camera_controller.mouse_moved(&physical_postion, &delta_position);
+                            camera_controller.mouse_moved(&position, &delta_position);
                         }
                     }
                     _ => (),
