@@ -83,10 +83,10 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                         for y in y_start..y_end - 1 {
                             for x in x_start..x_end - 1 {
                                 indices.push(((x + 0) + (y + 0) * VERTICES_PER_PATCH) as u16);
-                                indices.push(((x + 1) + (y + 1) * VERTICES_PER_PATCH) as u16);
                                 indices.push(((x + 0) + (y + 1) * VERTICES_PER_PATCH) as u16);
                                 indices.push(((x + 1) + (y + 1) * VERTICES_PER_PATCH) as u16);
                                 indices.push(((x + 0) + (y + 0) * VERTICES_PER_PATCH) as u16);
+                                indices.push(((x + 1) + (y + 1) * VERTICES_PER_PATCH) as u16);
                                 indices.push(((x + 1) + (y + 0) * VERTICES_PER_PATCH) as u16);
                             }
                         }
@@ -149,6 +149,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 write: true,
                 .. Default::default()
             },
+            backface_culling: glium::BackfaceCullingMode::CullCounterClockwise,
             .. Default::default()
         };
 
