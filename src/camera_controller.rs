@@ -80,7 +80,7 @@ impl CameraController {
     }
 
     pub fn tick<T: Transformable>(&mut self, time_since_last_frame: f32, transform: &mut T) {
-        let translation = self.movement_vector * time_since_last_frame as f64;
+        let translation = self.movement_vector * 100.0 * time_since_last_frame as f64;
 
         transform.rotate_by(&Rotation::from_axis_angle(
             &Vector3::y_axis(),
