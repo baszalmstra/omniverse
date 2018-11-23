@@ -11,7 +11,7 @@ impl Timeline {
         Timeline {
             start_time: Instant::now(),
             previous_frame_time: Instant::now(),
-            previous_frame_duration: Duration::from_secs(0)
+            previous_frame_duration: Duration::from_secs(0),
         }
     }
 
@@ -31,7 +31,7 @@ impl Timeline {
 
     /// Returns the duration of the last frame in fractional seconds
     pub fn previous_frame_time(&self) -> f32 {
-        self.previous_frame_duration.as_secs() as f32 +
-            (self.previous_frame_duration.subsec_nanos() as f64 * 1e-9) as f32
+        self.previous_frame_duration.as_secs() as f32
+            + (self.previous_frame_duration.subsec_nanos() as f64 * 1e-9) as f32
     }
 }

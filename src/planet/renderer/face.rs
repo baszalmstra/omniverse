@@ -1,21 +1,21 @@
-use transform::Transform;
-use planet::quad_tree::QuadTree;
-use nalgebra::UnitQuaternion;
 use super::node::Node;
-use transform::Rotation;
 use crate::planet;
+use nalgebra::UnitQuaternion;
+use planet::quad_tree::QuadTree;
+use transform::Rotation;
+use transform::Transform;
 
 /// Contains geometry for a single face of the cube that is the planet.
 pub struct Face {
     pub face: planet::Face,
-    pub root: QuadTree<Node>
+    pub root: QuadTree<Node>,
 }
 
 impl Face {
     pub fn new(node: Node, face: planet::Face) -> Face {
         Face {
             face,
-            root: QuadTree::new(node)
+            root: QuadTree::new(node),
         }
     }
 

@@ -1,5 +1,5 @@
-use nalgebra as na;
 use crate::transform::Transform;
+use nalgebra as na;
 
 pub struct Frustum {
     pub transform: Transform,
@@ -13,8 +13,9 @@ impl Frustum {
         Frustum {
             transform,
             projection,
-            view_projection:
-            projection * na::convert::<na::Matrix4<f64>, na::Matrix4<f32>>(transform.to_homogeneous()),
+            view_projection: projection * na::convert::<na::Matrix4<f64>, na::Matrix4<f32>>(
+                transform.to_homogeneous(),
+            ),
         }
     }
 }

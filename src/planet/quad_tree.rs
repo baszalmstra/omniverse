@@ -1,5 +1,5 @@
-use std::option::Option;
 use std::boxed::Box;
+use std::option::Option;
 
 pub struct QuadTree<T> {
     pub content: T,
@@ -10,7 +10,7 @@ impl<T> QuadTree<T> {
     pub fn new(content: T) -> QuadTree<T> {
         QuadTree {
             children: [None, None, None, None],
-            content
+            content,
         }
     }
 }

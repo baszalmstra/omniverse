@@ -1,5 +1,5 @@
-use crate::transform::{Transform, Transformable};
 use crate::frustum::Frustum;
+use crate::transform::{Transform, Transformable};
 use nalgebra;
 
 pub struct Camera {
@@ -36,8 +36,10 @@ impl Camera {
     }
 
     pub fn frustum(&self, aspect_ratio: f32) -> Frustum {
-        Frustum::new(self.transform.clone(),
-                     nalgebra::Matrix4::new_perspective(aspect_ratio, self.fov, self.near, self.far))
+        Frustum::new(
+            self.transform.clone(),
+            nalgebra::Matrix4::new_perspective(aspect_ratio, self.fov, self.near, self.far),
+        )
     }
 }
 
@@ -49,5 +51,3 @@ impl Transformable for Camera {
         &mut self.transform
     }
 }
-
-
