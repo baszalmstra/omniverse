@@ -22,7 +22,7 @@ fn main() {
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new()
         .with_title("Omniverse");
-    let context = glutin::ContextBuilder::new();
+    let context = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     let vertex_buffer = {
@@ -77,7 +77,11 @@ fn main() {
 
     let mut closed = false;
     let mut timeline = timeline::Timeline::new();
-    let mut rotation:f32 = 0.0;
+    let mut rotation: f32 = 0.0;
+
+    let mut left_mouse_pressed = false;
+    let mut last_mouse_position = glutin::dpi::LogicalPosition::new(0.0, 0.0);
+
     while !closed {
         timeline.next_frame();
 
@@ -105,6 +109,20 @@ fn main() {
                     glutin::WindowEvent::CloseRequested => closed = true,
                     glutin::WindowEvent::KeyboardInput { input, .. } => {
                         camera_controller.key_event(&input);
+                    }
+                    glutin::WindowEvent::MouseInput { state: glutin::ElementState::Pressed, button: glutin::MouseButton::Left, .. } => {
+                        left_mouse_pressed = true;
+                    }
+                    glutin::WindowEvent::MouseInput { state: glutin::ElementState::Released, button: glutin::MouseButton::Left, .. } => {
+                        left_mouse_pressed = false;
+                    }
+                    glutin::WindowEvent::CursorMoved { position, .. } => {
+                        let delta_position = glutin::dpi::LogicalPosition::new(position.x - last_mouse_position.x, position.y - last_mouse_position.y);
+                        last_mouse_position = position;
+
+                        if left_mouse_pressed {
+                            camera_controller.mouse_moved(&position, &delta_position);
+                        }
                     }
                     _ => (),
                 },
