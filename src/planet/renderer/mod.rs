@@ -143,6 +143,15 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             viewProjection: Into::<[[f32; 4]; 4]>::into(frustum.view_projection),
         };
 
+        let params = glium::DrawParameters {
+            depth: glium::Depth {
+                test: glium::draw_parameters::DepthTest::IfLess,
+                write: true,
+                .. Default::default()
+            },
+            .. Default::default()
+        };
+
         for face in self.faces.iter() {
             frame
                 .draw(
@@ -150,7 +159,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                     &self.index_buffer,
                     &self.program,
                     &uniforms,
-                    &Default::default(),
+                    &params,
                 ).unwrap();
         }
     }
