@@ -1,5 +1,5 @@
-use transform::Transform;
-use transform::Transformable;
+use crate::transform::Transform;
+use crate::transform::Transformable;
 
 pub struct Planet {
     transform: Transform,

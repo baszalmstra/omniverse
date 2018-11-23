@@ -2,10 +2,10 @@
 extern crate glium;
 extern crate nalgebra;
 
-use camera::Camera;
+use crate::camera::Camera;
 use nalgebra::Vector3;
-use camera_controller::CameraController;
-use transform::Transformable;
+use crate::camera_controller::CameraController;
+use crate::transform::Transformable;
 
 mod planet;
 mod planet_renderer;
