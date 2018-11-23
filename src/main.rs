@@ -1,9 +1,13 @@
+#![feature(test)]
+
 #[macro_use]
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
 extern crate nalgebra;
 extern crate ncollide;
+
+extern crate test;
 
 use crate::camera::Camera;
 use crate::camera_controller::CameraController;

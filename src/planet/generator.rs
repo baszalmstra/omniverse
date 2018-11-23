@@ -1,6 +1,6 @@
 use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
-use nalgebra::{Point3, Vector2, Vector3};
+use nalgebra::{Point3, Point2, Vector2, Vector3};
 use planet::geometry_provider::{PatchGeometry, PatchLocation};
 use planet::GeometryProvider;
 use std::mem;
@@ -80,5 +80,24 @@ fn morph(pos: Vector3<f64>) -> Vector3<f64> {
     Vector3::new(pos.x * f64::sqrt(1.0 - a.x - b.x + pos_squared.y*pos_squared.z/3.0),
                 pos.y * f64::sqrt(1.0 - a.y - b.y + pos_squared.z*pos_squared.x/3.0),
                 pos.z * f64::sqrt(1.0 - a.z - b.z + pos_squared.x*pos_squared.y/3.0))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::Bencher;
+
+    #[bench]
+    fn provide(b: &mut Bencher) {
+        let generator = Generator::new(planet::Description{ radius: 100.0 });
+        b.iter(|| {
+            generator.provide(PatchLocation {
+                face: planet::Face::Back,
+                offset: Point2::new(0.0,0.0),
+                size: 1.0
+            })
+        });
+    }
 }
 
