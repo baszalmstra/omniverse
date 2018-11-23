@@ -1,20 +1,20 @@
 use super::quad_tree::QuadTree;
 use super::Description;
 use crate::planet;
-use frustum::Frustum;
+use crate::frustum::Frustum;
 use glium::backend::{Context, Facade};
 use glium::index::{IndicesSource, PrimitiveType};
 use glium::{Display, Frame, IndexBuffer, Program, Surface};
 use nalgebra::{Point2, UnitQuaternion};
 use std::rc::Rc;
-use transform::Transform;
+use crate::transform::Transform;
 
 mod node;
 mod vertex;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
-use planet::geometry_provider::PatchLocation;
+use crate::planet::geometry_provider::PatchLocation;
 
 pub struct Renderer<T: planet::GeometryProvider> {
     /// The OpenGL context
@@ -43,7 +43,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         geometry_provider: T,
     ) -> Result<Renderer<T>, Box<std::error::Error>> {
         use nalgebra::UnitQuaternion;
-        use planet::constants::VERTICES_PER_PATCH;
+        use crate::planet::constants::VERTICES_PER_PATCH;
         use std::f64::consts::PI;
 
         let program = {
@@ -129,7 +129,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let mut split_distances:Vec<f64> = Vec::with_capacity(max_lod_level);
         split_distances.push(2.0);
         let mut last_value= 2.0;
-        for i in 0..max_lod_level-1 {
+        for _i in 0..max_lod_level-1 {
             split_distances.push(last_value * 2.0);
             last_value = last_value * 2.0;
         }
@@ -157,7 +157,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
     /// * `frame` - The frame to render to
     /// * `frustum` - The frustum that represents the view to render from in world space.
     /// * `planet_world_transform` - The transformation of the planet relative to the world.
-    pub fn draw(&self, frame: &mut Frame, frustum: &Frustum, planet_world_transform: &Transform) {
+    pub fn draw(&self, frame: &mut Frame, frustum: &Frustum, _planet_world_transform: &Transform) {
         let uniforms = uniform! {
             viewProjection: Into::<[[f32; 4]; 4]>::into(frustum.view_projection),
         };
@@ -189,7 +189,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         frustum: &Frustum,
         planet_world_transform: &Transform,
     ) {
-        let frustum_planet = Frustum::new(
+        let _frustum_planet = Frustum::new(
             planet_world_transform.inverse() * frustum.transform,
             frustum.projection,
         );
@@ -237,13 +237,13 @@ fn generate_face<F: ?Sized + Facade>(
 }
 
 fn ensure_resident_children(
-    frustum_planet: &Frustum,
-    face: planet::Face,
-    node: &mut QuadTree<Node>,
-    offset: Point2<f64>,
-    size: f64,
-    depth: usize,
-    split_distances: &[f64]
+    _frustum_planet: &Frustum,
+    _face: planet::Face,
+    _node: &mut QuadTree<Node>,
+    _offset: Point2<f64>,
+    _size: f64,
+    _depth: usize,
+    _split_distances: &[f64]
 ) {
 
 }

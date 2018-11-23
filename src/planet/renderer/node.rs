@@ -17,7 +17,7 @@ impl Node {
         facade: &F,
         geometry: &planet::PatchGeometry,
     ) -> Result<Node, Box<std::error::Error>> {
-        use planet::constants::VERTICES_PER_PATCH;
+        use crate::planet::constants::VERTICES_PER_PATCH;
         let mut vertices =
             Vec::<Vertex>::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH as usize);
 

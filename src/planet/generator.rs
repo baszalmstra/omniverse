@@ -1,8 +1,8 @@
 use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
 use nalgebra::{Point3, Point2, Vector2, Vector3};
-use planet::geometry_provider::{PatchGeometry, PatchLocation};
-use planet::GeometryProvider;
+use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
+use crate::planet::GeometryProvider;
 use std::mem;
 
 pub struct Generator {

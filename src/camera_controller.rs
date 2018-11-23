@@ -3,7 +3,7 @@ use glium::glutin::dpi::PhysicalPosition;
 use glium::glutin::KeyboardInput;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use transform::Rotation;
+use crate::transform::Rotation;
 
 pub struct CameraController {
     movement_vector: Vector3<f64>,
