@@ -3,6 +3,7 @@ extern crate glium;
 #[macro_use]
 extern crate lazy_static;
 extern crate nalgebra;
+extern crate ncollide;
 
 use crate::camera::Camera;
 use crate::camera_controller::CameraController;

@@ -9,11 +9,9 @@ use nalgebra::{Point2, UnitQuaternion};
 use std::rc::Rc;
 use transform::Transform;
 
-mod face;
 mod node;
 mod vertex;
 
-pub use self::face::Face;
 pub use self::node::Node;
 pub use self::vertex::Vertex;
 use planet::geometry_provider::PatchLocation;
@@ -26,9 +24,16 @@ pub struct Renderer<T: planet::GeometryProvider> {
     geometry_provider: T,
 
     faces: [Face; 6],
+    max_lod_level: usize,
+    split_distances: Vec<f64>,
 
     program: Program,
     index_buffer: IndexBuffer<u16>,
+}
+
+struct Face {
+    pub face: planet::Face,
+    pub root: QuadTree<Node>,
 }
 
 impl<T: planet::GeometryProvider> Renderer<T> {
@@ -39,6 +44,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
     ) -> Result<Renderer<T>, Box<std::error::Error>> {
         use nalgebra::UnitQuaternion;
         use planet::constants::VERTICES_PER_PATCH;
+        use std::f64::consts::PI;
 
         let program = {
             let vertex_shader_src = r#"
@@ -115,6 +121,19 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             IndexBuffer::new(facade, PrimitiveType::TrianglesList, &indices)?
         };
 
+        let max_lod_level = ((0.5 * PI * description.radius)
+            .log2()
+            .ceil()
+            - 1.0).max(1.0) as usize;
+
+        let mut split_distances:Vec<f64> = Vec::with_capacity(max_lod_level);
+        split_distances.push(2.0);
+        let mut last_value= 2.0;
+        for i in 0..max_lod_level-1 {
+            split_distances.push(last_value * 2.0);
+            last_value = last_value * 2.0;
+        }
+
         Ok(Renderer {
             context: facade.get_context().clone(),
             faces: [
@@ -129,10 +148,10 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             description,
             program,
             index_buffer,
+            max_lod_level,
+            split_distances
         })
     }
-
-
 
     /// Draws the planet to the screen from the perspective of the given frustum.
     /// * `frame` - The frame to render to
@@ -147,10 +166,10 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLess,
                 write: true,
-                .. Default::default()
+                ..Default::default()
             },
             backface_culling: glium::BackfaceCullingMode::CullCounterClockwise,
-            .. Default::default()
+            ..Default::default()
         };
 
         for face in self.faces.iter() {
@@ -162,6 +181,29 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                     &uniforms,
                     &params,
                 ).unwrap();
+        }
+    }
+
+    pub fn ensure_resident_patches(
+        &mut self,
+        frustum: &Frustum,
+        planet_world_transform: &Transform,
+    ) {
+        let frustum_planet = Frustum::new(
+            planet_world_transform.inverse() * frustum.transform,
+            frustum.projection,
+        );
+
+        for face in self.faces.iter_mut() {
+            ensure_resident_children(
+                frustum,
+                face.face,
+                &mut face.root,
+                Point2::new(0.0, 0.0),
+                1.0,
+                self.max_lod_level,
+                &self.split_distances
+            );
         }
     }
 
@@ -188,5 +230,20 @@ fn generate_face<F: ?Sized + Facade>(
             offset: Point2::new(0.0, 0.0),
         }),
     )?;
-    Ok(Face::new(root_node, face))
+    Ok(Face {
+        face,
+        root: QuadTree::new(root_node),
+    })
+}
+
+fn ensure_resident_children(
+    frustum_planet: &Frustum,
+    face: planet::Face,
+    node: &mut QuadTree<Node>,
+    offset: Point2<f64>,
+    size: f64,
+    depth: usize,
+    split_distances: &[f64]
+) {
+
 }

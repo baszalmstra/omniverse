@@ -7,7 +7,7 @@ pub trait Transformable {
 
     fn translate_by(&mut self, translation: &nalgebra::Vector3<f64>) -> &mut Self {
         self.transform_mut()
-            .append_translation_mut(&nalgebra::Translation3::from(*translation));
+            .append_translation_mut(&nalgebra::Translation3::from_vector(*translation));
         self
     }
 
