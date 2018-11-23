@@ -62,3 +62,5 @@ fabric.properties
 
 # *.iml
 # modules.xml
+
+cmake*

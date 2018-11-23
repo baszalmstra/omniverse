@@ -13,6 +13,7 @@ mod camera;
 mod camera_controller;
 mod frustum;
 mod transform;
+mod timeline;
 
 fn main() {
     use glium::glutin;
@@ -75,18 +76,12 @@ fn main() {
     let mut camera_controller = CameraController::new();
 
     let mut closed = false;
-    let mut last_time = std::time::Instant::now();
+    let mut timeline = timeline::Timeline::new();
     let mut rotation:f32 = 0.0;
     while !closed {
-        let now = std::time::Instant::now();
-        let dt = {
-            let duration = now.duration_since(last_time);
-            (duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9) as f32
-        };
-        last_time = now;
-        rotation += dt;
+        timeline.next_frame();
 
-        camera_controller.tick(dt, &mut camera);
+        camera_controller.tick(timeline.previous_frame_time(), &mut camera);
 
         let mut frame = display.draw();
         let frame_size = frame.get_dimensions();
