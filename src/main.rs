@@ -78,7 +78,7 @@ fn main() {
 
     let mut closed = false;
     let mut timeline = timeline::Timeline::new();
-    let mut rotation: f32 = 0.0;
+    let rotation: f32 = 0.0;
 
     let mut left_mouse_pressed = false;
     let mut last_mouse_position = glutin::dpi::PhysicalPosition::new(0.0, 0.0);

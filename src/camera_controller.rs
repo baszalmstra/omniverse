@@ -47,7 +47,7 @@ impl CameraController {
         }
     }
 
-    pub fn mouse_moved(&mut self, position: &PhysicalPosition, delta_position: &PhysicalPosition) {
+    pub fn mouse_moved(&mut self, _position: &PhysicalPosition, delta_position: &PhysicalPosition) {
         self.delta_mouse_position = Vector2::new(delta_position.x, delta_position.y);
     }
 
