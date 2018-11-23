@@ -30,7 +30,10 @@ impl GeometryProvider for Generator {
                 let local_position = Vector3::<f64>::new(x as f64 * step - 0.5,y as f64 * step - 0.5,0.5) * 2.0;
                 let oriented_position = patch.face.orientation() * local_position;
                 let dir = morph(oriented_position);
-                positions.push((dir*self.description.radius).into());
+
+                let height = 0.05 * f64::sin(30.0 * (dir.x + dir.y + dir.z));
+
+                positions.push((dir * (self.description.radius + height)).into());
                 normals.push(dir);
             }
         };
