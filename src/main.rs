@@ -27,9 +27,9 @@ fn main() {
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, -2.0));
+    camera.translate_by(&Vector3::new(0.0, 0.0, -150.0));
 
-    let planet_desc = planet::Description { radius: 1.0 };
+    let planet_desc = planet::Description { radius: 100.0 };
     let planet_transform = Transform::identity();
     let planet_renderer =
         planet::Renderer::new(&display, planet_desc, planet::Generator::new(planet_desc))
