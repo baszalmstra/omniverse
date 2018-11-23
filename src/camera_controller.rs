@@ -2,7 +2,7 @@ use nalgebra::Vector3;
 use nalgebra::Vector2;
 use crate::transform::Transformable;
 use glium::glutin::KeyboardInput;
-use glium::glutin::dpi::LogicalPosition;
+use glium::glutin::dpi::PhysicalPosition;
 use transform::Rotation;
 
 pub struct CameraController {
@@ -47,15 +47,15 @@ impl CameraController {
         }
     }
 
-    pub fn mouse_moved(&mut self, position: &LogicalPosition, delta_position: &LogicalPosition) {
+    pub fn mouse_moved(&mut self, position: &PhysicalPosition, delta_position: &PhysicalPosition) {
         self.delta_mouse_position = Vector2::new(delta_position.x, delta_position.y);
     }
 
     pub fn tick<T: Transformable>(&mut self, time_since_last_frame: f32, transform: &mut T) {
         let translation = self.movement_vector * time_since_last_frame as f64;
 
-        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::y_axis(), self.delta_mouse_position[0] * 0.03));
-        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::x_axis(), self.delta_mouse_position[1] * 0.03));
+        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::y_axis(), self.delta_mouse_position.x * 0.03));
+        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::x_axis(), self.delta_mouse_position.y * 0.03));
         self.delta_mouse_position = Vector2::new(0.0, 0.0);
         transform.translate_by(&translation);
     }

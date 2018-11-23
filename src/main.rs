@@ -41,6 +41,7 @@ fn main() {
         glium::VertexBuffer::new(&display, &shape).unwrap()
     };
 
+
     let program = {
         let vertex_shader_src = r#"
             #version 140
@@ -80,7 +81,7 @@ fn main() {
     let mut rotation: f32 = 0.0;
 
     let mut left_mouse_pressed = false;
-    let mut last_mouse_position = glutin::dpi::LogicalPosition::new(0.0, 0.0);
+    let mut last_mouse_position = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
 
     while !closed {
         timeline.next_frame();
@@ -91,6 +92,8 @@ fn main() {
         let frame_size = frame.get_dimensions();
         let aspect_ratio = frame_size.0 as f32 / frame_size.1 as f32;
         let frustum = camera.frustum(aspect_ratio);
+        let dpi = display.gl_window().get_hidpi_factor();
+
         frame.clear_color(0.0, 1.0, 0.0, 1.0);
 
         let triangle_uniforms = uniform! {
@@ -117,11 +120,13 @@ fn main() {
                         left_mouse_pressed = false;
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        let delta_position = glutin::dpi::LogicalPosition::new(position.x - last_mouse_position.x, position.y - last_mouse_position.y);
-                        last_mouse_position = position;
+                        let physical_postion = position.to_physical(dpi);
+
+                        let delta_position = glutin::dpi::PhysicalPosition::new(physical_postion.x - last_mouse_position.x, physical_postion.y - last_mouse_position.y);
+                        last_mouse_position = physical_postion;
 
                         if left_mouse_pressed {
-                            camera_controller.mouse_moved(&position, &delta_position);
+                            camera_controller.mouse_moved(&physical_postion, &delta_position);
                         }
                     }
                     _ => (),
