@@ -21,7 +21,7 @@ fn main() {
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new()
         .with_title("Omniverse");
-    let context = glutin::ContextBuilder::new();
+    let context = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     let vertex_buffer = {
@@ -39,6 +39,7 @@ fn main() {
 
         glium::VertexBuffer::new(&display, &shape).unwrap()
     };
+
 
     let program = {
         let vertex_shader_src = r#"
@@ -83,18 +84,22 @@ fn main() {
 
     let mut closed = false;
     let mut timeline = timeline::Timeline::new();
-    let mut rotation:f32 = 0.0;
+    let rotation: f32 = 0.0;
+
+    let mut left_mouse_pressed = false;
+    let mut last_mouse_position = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
+
     while !closed {
         timeline.next_frame();
 
         camera_controller.tick(timeline.previous_frame_time(), &mut camera);
 
-        rotation += timeline.previous_frame_time();
-
         let mut frame = display.draw();
         let frame_size = frame.get_dimensions();
         let aspect_ratio = frame_size.0 as f32 / frame_size.1 as f32;
         let frustum = camera.frustum(aspect_ratio);
+        let dpi = display.gl_window().get_hidpi_factor();
+
         frame.clear_color(0.0, 1.0, 0.0, 1.0);
 
         let triangle_uniforms = uniform! {
@@ -116,6 +121,22 @@ fn main() {
                     glutin::WindowEvent::CloseRequested => closed = true,
                     glutin::WindowEvent::KeyboardInput { input, .. } => {
                         camera_controller.key_event(&input);
+                    }
+                    glutin::WindowEvent::MouseInput { state: glutin::ElementState::Pressed, button: glutin::MouseButton::Left, .. } => {
+                        left_mouse_pressed = true;
+                    }
+                    glutin::WindowEvent::MouseInput { state: glutin::ElementState::Released, button: glutin::MouseButton::Left, .. } => {
+                        left_mouse_pressed = false;
+                    }
+                    glutin::WindowEvent::CursorMoved { position, .. } => {
+                        let physical_postion = position.to_physical(dpi);
+
+                        let delta_position = glutin::dpi::PhysicalPosition::new(physical_postion.x - last_mouse_position.x, physical_postion.y - last_mouse_position.y);
+                        last_mouse_position = physical_postion;
+
+                        if left_mouse_pressed {
+                            camera_controller.mouse_moved(&physical_postion, &delta_position);
+                        }
                     }
                     _ => (),
                 },
