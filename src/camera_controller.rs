@@ -1,17 +1,14 @@
 use nalgebra::Vector3;
-use transform::{Transformer, Transformable};
+use transform::{Transformable};
 use glium::glutin::KeyboardInput;
 
-pub struct CameraController<'a> {
-    pub transformable: &'a Transformer,
-
+pub struct CameraController {
     movement_vector: Vector3<f64>,
 }
 
-impl<'a> CameraController<'a> {
-    pub fn new(transformable: &'a Transformer) -> CameraController<'a> {
+impl CameraController {
+    pub fn new() -> CameraController {
         CameraController {
-            transformable,
             movement_vector: Vector3::new(0.0, 0.0, 0.0)
         }
     }
@@ -43,8 +40,8 @@ impl<'a> CameraController<'a> {
         }
     }
 
-    pub fn tick(&mut self, time_since_last_frame:f32) {
+    pub fn tick<T:Transformable>(&mut self, time_since_last_frame:f32, transform:&mut T) {
         let translation = self.movement_vector * time_since_last_frame as f64;
-        self.transformable.translate_by(&translation);
+        transform.translate_by(&translation);
     }
 }

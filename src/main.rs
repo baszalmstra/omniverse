@@ -4,8 +4,8 @@ extern crate nalgebra;
 
 use camera::Camera;
 use nalgebra::Vector3;
-use transform::Transformer;
 use camera_controller::CameraController;
+use transform::Transformable;
 
 mod planet;
 mod planet_renderer;
@@ -69,10 +69,10 @@ fn main() {
 
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 
-    let camera = Camera::new();
+    let mut camera = Camera::new();
     camera.translate_by(&Vector3::new(0.0, 0.0, -2.0));
 
-    let mut camera_controller = CameraController::new(&camera);
+    let mut camera_controller = CameraController::new();
 
     let mut closed = false;
     let mut last_time = std::time::Instant::now();
@@ -86,7 +86,7 @@ fn main() {
         last_time = now;
         rotation += dt;
 
-        camera_controller.tick(dt);
+        camera_controller.tick(dt, &mut camera);
 
         let mut frame = display.draw();
         let frame_size = frame.get_dimensions();

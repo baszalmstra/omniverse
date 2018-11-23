@@ -1,12 +1,9 @@
 use transform::{Transform, Transformable};
 use frustum::Frustum;
 use nalgebra;
-use std::cell::RefCell;
-use std::cell::Ref;
-use std::cell::RefMut;
 
 pub struct Camera {
-    transform: RefCell<Transform>,
+    transform: Transform,
 
     fov: f32,
     near: f32,
@@ -16,7 +13,7 @@ pub struct Camera {
 impl Camera {
     pub fn new() -> Camera {
         Camera {
-            transform: RefCell::new(Transform::identity()),
+            transform: Transform::identity(),
             fov: 1.0,
             near: 0.1,
             far: 10000.0,
@@ -39,17 +36,17 @@ impl Camera {
     }
 
     pub fn frustum(&self, aspect_ratio: f32) -> Frustum {
-        Frustum::new(self.transform.borrow().clone(),
+        Frustum::new(self.transform.clone(),
                      nalgebra::Matrix4::new_perspective(aspect_ratio, self.fov, self.near, self.far))
     }
 }
 
 impl Transformable for Camera {
-    fn transform(&self) -> Ref<Transform> {
-        self.transform.borrow()
+    fn transform(&self) -> &Transform {
+        &self.transform
     }
-    fn transform_mut(&self) -> RefMut<Transform> {
-        self.transform.borrow_mut()
+    fn transform_mut(&mut self) -> &mut Transform {
+        &mut self.transform
     }
 }
 
