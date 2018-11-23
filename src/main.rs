@@ -87,7 +87,8 @@ fn main() {
     let rotation: f32 = 0.0;
 
     let mut left_mouse_pressed = false;
-    let mut last_mouse_position = glutin::dpi::PhysicalPosition::new(0.0, 0.0);
+    let mut last_logical_mouse_position = glutin::dpi::LogicalPosition::new(0.0,0.0);
+    let mut mouse_down_mouse_position = last_logical_mouse_position;
 
 
     let dpi = display.gl_window().get_hidpi_factor();
@@ -134,22 +135,29 @@ fn main() {
                     },
                     glutin::WindowEvent::MouseInput { state: glutin::ElementState::Pressed, button: glutin::MouseButton::Left, .. } => {
                         left_mouse_pressed = true;
+                        mouse_down_mouse_position = last_logical_mouse_position;
+                        display.gl_window().hide_cursor(true);
                     }
                     glutin::WindowEvent::MouseInput { state: glutin::ElementState::Released, button: glutin::MouseButton::Left, .. } => {
                         left_mouse_pressed = false;
+                        display.gl_window().set_cursor_position(mouse_down_mouse_position);
+                        display.gl_window().hide_cursor(false);
                     }
                     glutin::WindowEvent::CursorMoved { position, .. } => {
-                        let physical_position = position.to_physical(dpi);
-                        let delta_position = glutin::dpi::PhysicalPosition::new((physical_position.x - last_mouse_position.x) / screen.width,
-                                                                                (physical_position.y - last_mouse_position.y) / screen.height);
-                        last_mouse_position = physical_position;
-
-                        if left_mouse_pressed {
-                            camera_controller.mouse_moved(&physical_position, &delta_position);
-                        }
+                        last_logical_mouse_position = position;
                     }
                     _ => (),
                 },
+                glutin::Event::DeviceEvent { event, .. } => match event {
+                    glutin::DeviceEvent::MouseMotion { delta, .. } => {
+
+                        if left_mouse_pressed {
+                            camera_controller.mouse_moved(&delta);
+
+                        }
+                    },
+                    _ => ()
+                }
                 _ => (),
             }
         })
