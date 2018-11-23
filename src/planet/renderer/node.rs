@@ -16,13 +16,18 @@ impl Node {
     ) -> Result<Node, Box<std::error::Error>> {
         use planet::constants::VERTICES_PER_PATCH;
         let mut vertices =  Vec::<Vertex>::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH as usize);
-        for pos in geometry.positions.iter() {
+        for (pos, normal) in geometry.positions.iter().zip(geometry.normals.iter()) {
             vertices.push(Vertex {
                position: [
                    pos.x as f32,
                    pos.y as f32,
                    pos.z as f32,
-               ]
+               ],
+                normal: [
+                    normal.x as f32,
+                    normal.y as f32,
+                    normal.z as f32,
+                ]
             });
         }
 

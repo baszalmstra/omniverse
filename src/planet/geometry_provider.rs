@@ -1,4 +1,4 @@
-use nalgebra::{Point2, Point3};
+use nalgebra::{Point2, Point3, Vector3};
 use planet::constants::VERTICES_PER_PATCH;
 use planet::Face;
 
@@ -16,6 +16,7 @@ pub struct PatchLocation {
 /// Geometry of a single patch
 pub struct PatchGeometry {
     pub positions: Vec<Point3<f64>>,
+    pub normals: Vec<Vector3<f64>>,
 }
 
 pub trait GeometryProvider {

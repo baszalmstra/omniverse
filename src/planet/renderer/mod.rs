@@ -42,24 +42,32 @@ impl<T: planet::GeometryProvider> Renderer<T> {
 
         let program = {
             let vertex_shader_src = r#"
-                #version 140
+                #version 430 core
 
-                in vec3 position;
+                layout(location = 0) in vec3 position;
+                layout(location = 1) in vec3 normal;
+
+                layout(location = 0) out vec3 Normal;
 
                 uniform mat4 viewProjection;
 
                 void main() {
                     gl_Position = viewProjection*vec4(position, 1.0);
+
+                    Normal = normal;
                 }
             "#;
 
             let fragment_shader_src = r#"
-                #version 140
+                #version 430 core
+
+                layout(location = 0) in vec3 normal;
 
                 out vec4 color;
 
                 void main() {
-                    color = vec4(1.0, 0.0, 0.0, 1.0);
+                    float nDotL = max(0, dot(normal, vec3(1,0,0)));
+                    color = vec4(nDotL,nDotL,nDotL, 1.0);
                 }
             "#;
 
