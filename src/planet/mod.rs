@@ -8,5 +8,7 @@ pub struct Description {
 
 mod renderer;
 mod quad_tree;
+mod face;
 
 pub use self::renderer::Renderer;
+pub use self::face::Face;

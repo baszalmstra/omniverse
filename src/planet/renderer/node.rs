@@ -2,10 +2,11 @@ use glium::VertexBuffer;
 use glium::backend::{Facade};
 use nalgebra::{UnitQuaternion, Point2, Point3};
 use super::{Vertex, Description};
+use crate::planet;
 
 /// Location of a node in the oriented unit quad.
 pub struct NodeLocation {
-    pub orientation: UnitQuaternion<f64>,
+    pub face: planet::Face,
     pub offset: Point2<f64>,
     pub size: f64,
 }
@@ -24,7 +25,7 @@ impl Node {
         for y in 0..VERTICES_PER_PATCH {
             for x in 0..VERTICES_PER_PATCH {
                 let local_position = Point3::<f64>::new(x as f64 * step - 0.5,y as f64 * step - 0.5,0.5) * 2.0 * description.radius;
-                let oriented_position = location.orientation * local_position;
+                let oriented_position = location.face.orientation() * local_position;
 
                 vertices.push(Vertex {
                     position: [

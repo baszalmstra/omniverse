@@ -7,6 +7,7 @@ use transform::Transform;
 use nalgebra::{Point2, UnitQuaternion};
 use super::quad_tree::QuadTree;
 use super::Description;
+use crate::planet;
 
 mod node;
 mod face;
@@ -29,7 +30,6 @@ pub struct Renderer {
 impl Renderer {
     pub fn new<F:?Sized+Facade>(facade: &F, description:Description) -> Result<Renderer, Box<std::error::Error>> {
         use nalgebra::UnitQuaternion;
-        use std::f64::consts::PI;
         use self::constants::VERTICES_PER_PATCH;
 
         let program = {
@@ -88,12 +88,12 @@ impl Renderer {
         Ok(Renderer {
             context: facade.get_context().clone(),
             faces: [
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,0.0,0.0), &description)?,    // Front
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,0.0,PI), &description)?,     // Back
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,0.0,PI*0.5), &description)?, // Left
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,0.0,PI*1.5), &description)?, // Right
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,PI*0.5,0.0), &description)?, // Top
-                Renderer::generate_face(facade, UnitQuaternion::from_euler_angles(0.0,PI*1.5,0.0), &description)?  // Bottom
+                Renderer::generate_face(facade, planet::Face::Front, &description)?,
+                Renderer::generate_face(facade, planet::Face::Back, &description)?,
+                Renderer::generate_face(facade, planet::Face::Left, &description)?,
+                Renderer::generate_face(facade, planet::Face::Right, &description)?,
+                Renderer::generate_face(facade, planet::Face::Top, &description)?,
+                Renderer::generate_face(facade, planet::Face::Bottom, &description)?
             ],
             description,
             program,
@@ -101,13 +101,13 @@ impl Renderer {
         })
     }
 
-    fn generate_face<F:?Sized+Facade>(facade: &F, orientation:UnitQuaternion<f64>, description: &Description) -> Result<Face, Box<std::error::Error>> {
+    fn generate_face<F:?Sized+Facade>(facade: &F, face:planet::Face, description: &Description) -> Result<Face, Box<std::error::Error>> {
         let root_node = Node::new(facade, description, NodeLocation {
-            orientation,
+            face,
             size: 1.0,
             offset: Point2::new(0.0, 0.0)
         })?;
-        Ok(Face::new(root_node, orientation))
+        Ok(Face::new(root_node, face))
     }
 
     /// Draws the planet to the screen from the perspective of the given frustum.
