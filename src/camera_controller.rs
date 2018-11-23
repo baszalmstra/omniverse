@@ -54,8 +54,8 @@ impl CameraController {
     pub fn tick<T: Transformable>(&mut self, time_since_last_frame: f32, transform: &mut T) {
         let translation = self.movement_vector * time_since_last_frame as f64;
 
-        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::y_axis(), self.delta_mouse_position.x * 0.1 * time_since_last_frame as f64));
-        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::x_axis(), self.delta_mouse_position.y * 0.1 * time_since_last_frame as f64));
+        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::y_axis(), self.delta_mouse_position.x * 0.003));
+        transform.rotate_by(&Rotation::from_axis_angle(&Vector3::x_axis(), self.delta_mouse_position.y * 0.003));
         self.delta_mouse_position = Vector2::new(0.0, 0.0);
         transform.translate_by(&translation);
     }
