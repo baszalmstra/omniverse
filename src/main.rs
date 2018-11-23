@@ -63,14 +63,7 @@ fn main() {
         let frustum = camera.frustum(aspect_ratio);
 
         frame.clear_color(0.0, 1.0, 0.0, 1.0);
-
-        let triangle_uniforms = uniform! {
-            viewProjection: Into::<[[f32; 4]; 4]>::into(frustum.view_projection),
-            model: Into::<[[f32; 4]; 4]>::into(
-                nalgebra::Matrix4::new_translation(&nalgebra::Vector3::new(0.0, 0.0, -2.0))*
-                nalgebra::Matrix4::from_euler_angles(0.0,rotation,0.0))
-        };
-
+        
         planet_renderer.draw(&mut frame, &frustum, &planet_transform);
 
         frame.finish().unwrap();
