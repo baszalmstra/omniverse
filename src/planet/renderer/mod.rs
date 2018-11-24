@@ -6,7 +6,7 @@ use super::Description;
 use crate::frustum::Frustum;
 use crate::planet;
 use crate::transform::Transform;
-use nalgebra::{Point2, Point3, Vector3, Matrix4, Translation3};
+use nalgebra::{Point3, Vector3, Matrix4, Translation3};
 use std::rc::Rc;
 
 mod node;
@@ -218,7 +218,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             frustum.projection,
         );
 
-        // Query all faces for visible patches
+        // Query all faces for visible nodes
         let visible_nodes: VecDeque<VisibleNode> = {
             let mut result = VecDeque::new();
             for face in self.faces.iter() {
@@ -342,17 +342,12 @@ fn generate_face(
     face: planet::Face,
     geometry_provider: &planet::GeometryProvider,
 ) -> Face {
-    let root_node = Node::new(
-        backing,
-        &geometry_provider.provide(PatchLocation {
-            face,
-            size: 1.0,
-            offset: Point2::new(0.0, 0.0),
-        }),
-    );
     Face {
         face,
-        root: QuadTree::new(root_node),
+        root: QuadTree::new(Node::new(
+            backing,
+            &geometry_provider.provide(face.into()),
+        )),
     }
 }
 
@@ -380,30 +375,10 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     // Otherwise; ensure that this node has children resident
     if !node.has_children() {
         node.children = Some(Box::new([
-            QuadTree::new(
-                Node::new(
-                    backing,
-                    &geometry_provider.provide(location.top_left()),
-                ),
-            ),
-            QuadTree::new(
-                Node::new(
-                    backing,
-                    &geometry_provider.provide(location.top_right()),
-                ),
-            ),
-            QuadTree::new(
-                Node::new(
-                    backing,
-                    &geometry_provider.provide(location.bottom_left()),
-                ),
-            ),
-            QuadTree::new(
-                Node::new(
-                    backing,
-                    &geometry_provider.provide(location.bottom_right()),
-                ),
-            ),
+            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.top_left()))),
+            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.top_right()))),
+            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.bottom_left()))),
+            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.bottom_right()))),
         ]))
     }
 
@@ -437,6 +412,13 @@ fn query_visible_nodes<'a>(
     split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
 ) {
+    use frustum::{Containment, Classify};
+
+    let frustum_containment = frustum_planet.classify(&node.content.aabb);
+    if frustum_containment == Containment::Outside {
+        return;
+    }
+
     if depth == 0 {
         add_to_visible_list(
             frustum_planet,
