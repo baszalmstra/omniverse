@@ -6,9 +6,6 @@ use super::Description;
 use crate::frustum::Frustum;
 use crate::planet;
 use crate::transform::Transform;
-use glium::backend::{Context, Facade};
-use glium::index::{PrimitiveType, IndicesSource};
-use glium::{Frame, IndexBuffer, Program, Surface};
 use nalgebra::{Point2, Point3, Vector3, Matrix4, Translation3};
 use std::rc::Rc;
 
@@ -21,10 +18,18 @@ pub use self::vertex::Vertex;
 use crate::planet::geometry_provider::PatchLocation;
 use std::collections::VecDeque;
 use planet::renderer::node_backing::NodeBacking;
-use std::os::raw;
-use glium::VertexBuffer;
 use std::cell::RefCell;
-use glium::CapabilitiesSource;
+use glium::{
+    VertexBuffer,
+    Frame,
+    IndexBuffer,
+    Program,
+    Surface,
+    index::{PrimitiveType, IndicesSource},
+    backend::{Context, Facade},
+    index::DrawCommandsIndicesBuffer
+};
+use glium::index::DrawCommandIndices;
 
 pub struct DrawParameters {
     pub wire_frame: bool,
@@ -36,6 +41,13 @@ impl Default for DrawParameters {
     }
 }
 
+#[derive(Copy, Clone)]
+struct PerNodeInstanceVertex {
+    pose_camera: [[f32;4]; 4],
+}
+
+implement_vertex!(PerNodeInstanceVertex, pose_camera);
+
 pub struct Renderer<T: planet::GeometryProvider> {
     /// The OpenGL context
     context: Rc<Context>,
@@ -43,7 +55,8 @@ pub struct Renderer<T: planet::GeometryProvider> {
     description: Description,
     geometry_provider: T,
     backing: NodeBacking,
-    command_buffer: RefCell<VertexBuffer<PatchDrawCommand>>,
+    command_buffer: RefCell<DrawCommandsIndicesBuffer>,
+    per_visible_node_buffer: RefCell<VertexBuffer<PerNodeInstanceVertex>>,
 
     faces: [Face; 6],
     max_lod_level: usize,
@@ -57,23 +70,6 @@ struct Face {
     pub face: planet::Face,
     pub root: QuadTree<Node>,
 }
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-struct PatchDrawCommand {
-    /// Number of indices to use in the index buffer.
-    pub count: raw::c_uint,
-    /// Number of instances to draw. If it's `0`, nothing will be drawn.
-    pub instance_count: raw::c_uint,
-    /// First index to draw in the index buffer.
-    pub first_index: raw::c_uint,
-    /// Value to add to each index.
-    pub base_vertex: raw::c_uint,
-    /// Numero of the first instance to draw.
-    pub base_instance: raw::c_uint,
-}
-
-implement_vertex!(PatchDrawCommand, count, instance_count, first_index, base_vertex, base_instance);
 
 impl<T: planet::GeometryProvider> Renderer<T> {
     pub fn new<F: ?Sized + Facade>(
@@ -90,13 +86,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
 
                 in vec3 position;
                 in vec3 normal;
+                in mat4 pose_camera;
 
                 out vec3 Normal;
 
                 uniform mat4 viewProjection;
 
                 void main() {
-                    gl_Position = viewProjection*vec4(position, 1.0);
+                    gl_Position = viewProjection*(pose_camera*vec4(position, 1.0));
 
                     Normal = normal;
                 }
@@ -190,7 +187,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             index_buffer,
             max_lod_level,
             split_distances,
-            command_buffer: RefCell::new(VertexBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?)
+            per_visible_node_buffer: RefCell::new(VertexBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?),
+            command_buffer: RefCell::new(DrawCommandsIndicesBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?)
         })
     }
 
@@ -205,28 +203,44 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         planet_world_transform: &Transform,
         draw_parameters: &DrawParameters,
     ) {
+        // Construct a new frustum relative to the planet to ease computations
         let frustum_planet = Frustum::new(
             planet_world_transform.inverse() * frustum.transform,
             frustum.projection,
         );
 
-        let mut visible_nodes: VecDeque<VisibleNode> = VecDeque::new();
-        for face in self.faces.iter() {
-            query_visible_nodes(
-                &frustum_planet,
-                &face.root,
-                face.face.into(),
-                self.max_lod_level,
-                self.max_lod_level,
-                &self.split_distances,
-                &mut visible_nodes,
-            );
-        }
+        // Projection frustum is used for the final projection in the shader. This frustum is
+        // basically `frustum_planet` but without the translation. This is because the translation
+        // of the camera is already encoded in the patches themselves. This way we get maximum
+        // precision near the camera position.
+        let projection_frustum = Frustum::new(
+            Transform::from_parts(Translation3::identity(), frustum_planet.transform.rotation),
+            frustum.projection,
+        );
 
-        let uniforms = uniform! {
-            viewProjection: Into::<[[f32; 4]; 4]>::into(frustum_planet.view_projection),
+        // Query all faces for visible patches
+        let visible_nodes: VecDeque<VisibleNode> = {
+            let mut result = VecDeque::new();
+            for face in self.faces.iter() {
+                query_visible_nodes(
+                    &frustum_planet,
+                    &face.root,
+                    face.face.into(),
+                    self.max_lod_level,
+                    self.max_lod_level,
+                    &self.split_distances,
+                    &mut result,
+                );
+            }
+            result
         };
 
+        // Setup all uniforms for drawing
+        let uniforms = uniform! {
+            viewProjection: Into::<[[f32; 4]; 4]>::into(projection_frustum.view_projection),
+        };
+
+        // Setup render pipeline
         let params = glium::DrawParameters {
             depth: glium::Depth {
                 test: glium::draw_parameters::DepthTest::IfLess,
@@ -242,49 +256,51 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             ..Default::default()
         };
 
-        if self.context.get_extensions().gl_arb_multi_draw_indirect {
-            let mut command_buffer = self.command_buffer.borrow_mut();
-            let mut mapping = command_buffer.map_write();
+        // Generate per node instance data
+        {
+            let mut node_instance_data = self.per_visible_node_buffer.borrow_mut();
+            let mut mapping = node_instance_data.map_write();
             for (idx, node) in visible_nodes.iter().enumerate() {
-                mapping.set(idx, PatchDrawCommand {
-                    count: self.index_buffer.len() as u32,
-                    instance_count: 1,
-                    first_index: 0,
-                    base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
-                    base_instance: idx as u32
+                mapping.set(idx, PerNodeInstanceVertex {
+                    pose_camera: node.transform_camera.into()
                 })
             }
         }
 
-        if self.context.get_extensions().gl_arb_multi_draw_indirect {
-            let command_buffer = self.command_buffer.borrow();
-            frame
-                .draw(
-                    &self.backing.vertices.vertex_buffer,
-                    IndicesSource::MultidrawElement {
-                        commands: command_buffer.slice(0 .. visible_nodes.len()).unwrap().as_slice_any(),
-                        indices: self.index_buffer.as_slice_any(),
-                        data_type: self.index_buffer.get_indices_type(),
-                        primitives: self.index_buffer.get_primitives_type(),
-                    },
-                    &self.program,
-                    &uniforms,
-                    &params,
-                )
-                .unwrap();
-        } else {
-            for node in visible_nodes.iter() {
-                frame
-                    .draw(
-                        self.backing.vertices.slice(node.node.node_id),
-                        &self.index_buffer,
-                        &self.program,
-                        &uniforms,
-                        &params,
-                    )
-                    .unwrap();
+        // Fill the command buffer to execute rendering of all patches on the GPU in a single
+        // command
+        {
+            let mut command_buffer = self.command_buffer.borrow_mut();
+            let mut mapping = command_buffer.map_write();
+            for (idx, node) in visible_nodes.iter().enumerate() {
+                mapping.set(idx, DrawCommandIndices {
+                    count: self.index_buffer.len() as u32,
+                    instance_count: 1,
+                    first_index: 0,
+                    base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
+                    base_instance: idx as u32,
+                })
             }
         }
+
+        let command_buffer = self.command_buffer.borrow();
+        let command_buffer_slice = command_buffer.slice(0 .. visible_nodes.len()).unwrap();
+        let node_instance_data = self.per_visible_node_buffer.borrow();
+        frame
+            .draw(
+                (&self.backing.vertices.vertex_buffer, node_instance_data.per_instance().unwrap()),
+                IndicesSource::MultidrawElement {
+                    commands: command_buffer_slice.as_slice_any(),
+                    indices: self.index_buffer.as_slice_any(),
+                    data_type: self.index_buffer.get_indices_type(),
+                    primitives: self.index_buffer.get_primitives_type(),
+                },
+                &self.program,
+                &uniforms,
+                &params,
+            )
+            .unwrap();
+
     }
 
     pub fn ensure_resident_patches(
@@ -475,8 +491,7 @@ fn add_to_visible_list<'a>(
     _split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
 ) {
-    let node_planet = Vector3::new(0.0, 0.0, 0.0);
-    let node_camera = node_planet - frustum_planet.transform.translation.vector;
+    let node_camera = node.origin - Point3::from_coordinates(frustum_planet.transform.translation.vector);
 
     result.push_back(VisibleNode {
         node,

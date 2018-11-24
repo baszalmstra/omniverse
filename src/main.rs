@@ -4,6 +4,9 @@
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use] extern crate log;
+extern crate pretty_env_logger;
+
 extern crate alga;
 extern crate nalgebra;
 extern crate ncollide;
@@ -15,6 +18,7 @@ use crate::camera::Camera;
 use crate::camera_controller::CameraController;
 use crate::transform::{Transform, Transformable};
 use nalgebra::Vector3;
+use glium::CapabilitiesSource;
 
 mod camera;
 mod camera_controller;
@@ -28,10 +32,18 @@ fn main() {
     use glium::glutin;
     use glium::Surface;
 
+    pretty_env_logger::init();
+
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_title("Omniverse");
-    let context = glutin::ContextBuilder::new().with_vsync(true);
+    let context = glutin::ContextBuilder::new()
+        .with_vsync(true);
     let display = glium::Display::new(window, context, &events_loop).unwrap();
+
+    if !display.get_extensions().gl_arb_multi_draw_indirect {
+        error!("Missing required OpenGL extension: GL_ARB_multi_draw_indirect");
+        return;
+    }
 
     let mut camera = Camera::new();
     camera.translate_by(&Vector3::new(0.0, 0.0, 1500.0));

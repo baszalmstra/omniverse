@@ -1,5 +1,6 @@
 use super::{Vertex};
 use crate::planet;
+use nalgebra::{Point3};
 use ncollide::bounding_volume::{AABB3};
 use planet::renderer::node_backing::NodeId;
 use planet::renderer::node_backing::NodeBacking;
@@ -9,6 +10,7 @@ pub struct Node {
     pub node_id: NodeId,
 
     pub aabb: AABB3<f64>,
+    pub origin: Point3<f64>,
 }
 
 impl Node {
@@ -24,11 +26,15 @@ impl Node {
         let mut min = geometry.positions[0].clone();
         let mut max = geometry.positions[0].clone();
 
+        let origin = geometry.positions[0].clone();
+
         for (i, (pos, normal)) in geometry.positions.iter().zip(geometry.normals.iter()).enumerate() {
             min = nalgebra::inf(&min, pos);
             max = nalgebra::sup(&max, pos);
+
+            let rel_pos = Point3::from_coordinates(pos - origin);
             mapping.set(i, Vertex {
-                position: [pos.x as f32, pos.y as f32, pos.z as f32],
+                position: [rel_pos.x as f32, rel_pos.y as f32, rel_pos.z as f32],
                 normal: [normal.x as f32, normal.y as f32, normal.z as f32],
             });
         }
@@ -36,6 +42,7 @@ impl Node {
         Node {
             node_id: id,
             aabb: AABB3::new(min, max),
+            origin
         }
     }
 }
