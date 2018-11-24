@@ -49,12 +49,12 @@ impl<T: planet::GeometryProvider> Renderer<T> {
 
         let program = {
             let vertex_shader_src = r#"
-                #version 430 core
+                #version 330 core
 
-                layout(location = 0) in vec3 position;
-                layout(location = 1) in vec3 normal;
+                in vec3 position;
+                in vec3 normal;
 
-                layout(location = 0) out vec3 Normal;
+                out vec3 Normal;
 
                 uniform mat4 viewProjection;
 
@@ -66,14 +66,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             "#;
 
             let fragment_shader_src = r#"
-                #version 430 core
+                #version 330 core
 
-                layout(location = 0) in vec3 normal;
+                in vec3 Normal;
 
                 out vec4 color;
 
                 void main() {
-                    float nDotL = max(0, dot(normal, vec3(1,0,0)));
+                    float nDotL = max(0, dot(Normal, vec3(1,0,0)));
                     color = vec4(nDotL,nDotL,nDotL, 1.0);
                 }
             "#;
