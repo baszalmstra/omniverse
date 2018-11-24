@@ -131,7 +131,6 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                                 indices.push(((x + 1) + (y + 0) * VERTICES_PER_PATCH) as u16);
                             }
                         }
-                        println!("{}", indices.len());
                     };
 
                 add_region(0, 0, VERTICES_PER_PATCH / 2 + 1, VERTICES_PER_PATCH / 2 + 1);
