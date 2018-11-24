@@ -1,8 +1,8 @@
 use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
-use nalgebra::{Point3, Point2, Vector2, Vector3};
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
+use nalgebra::{Point2, Point3, Vector2, Vector3};
 use std::mem;
 
 pub struct Generator {
@@ -44,44 +44,48 @@ impl Generator {
 
 impl GeometryProvider for Generator {
     fn provide(&self, patch: PatchLocation) -> PatchGeometry {
-
         // Generate vertices
-        let vertex_step = patch.size/(VERTICES_PER_PATCH as f64-1.0);
-        let mut positions:Vec<Point3<f64>> = Vec::with_capacity(VERTICES_PER_PATCH*VERTICES_PER_PATCH);
+        let vertex_step = patch.size / (VERTICES_PER_PATCH as f64 - 1.0);
+        let mut positions: Vec<Point3<f64>> =
+            Vec::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH);
         for y in 0..VERTICES_PER_PATCH {
             for x in 0..VERTICES_PER_PATCH {
-                let local_position = Vector2::<f64>::new(x as f64 * vertex_step - 0.5 + patch.offset.x ,y as f64 * vertex_step - 0.5 + patch.offset.y) * 2.0;
+                let local_position = Vector2::<f64>::new(
+                    x as f64 * vertex_step - 0.5 + patch.offset.x,
+                    y as f64 * vertex_step - 0.5 + patch.offset.y,
+                ) * 2.0;
                 positions.push(self.compute_vertex(local_position.x, local_position.y, &patch));
             }
-        };
+        }
 
         // Generate normals
-        let normal_step = patch.size/(NORMALS_PER_PATCH as f64-1.0);
-        let mut normals:Vec<Vector3<f64>> = Vec::with_capacity(NORMALS_PER_PATCH*NORMALS_PER_PATCH);
+        let normal_step = patch.size / (NORMALS_PER_PATCH as f64 - 1.0);
+        let mut normals: Vec<Vector3<f64>> =
+            Vec::with_capacity(NORMALS_PER_PATCH * NORMALS_PER_PATCH);
         for y in 0..NORMALS_PER_PATCH {
             for x in 0..NORMALS_PER_PATCH {
-                let local_position = Vector2::<f64>::new(x as f64 * normal_step - 0.5 + patch.offset.x, y as f64 * normal_step - 0.5 + patch.offset.y) * 2.0;
+                let local_position = Vector2::<f64>::new(
+                    x as f64 * normal_step - 0.5 + patch.offset.x,
+                    y as f64 * normal_step - 0.5 + patch.offset.y,
+                ) * 2.0;
                 normals.push(self.compute_normal(local_position.x, local_position.y, &patch));
             }
-        };
-
-        PatchGeometry {
-            positions,
-            normals
         }
-    }
 
+        PatchGeometry { positions, normals }
+    }
 }
 
 fn morph(pos: Vector3<f64>) -> Vector3<f64> {
-    let pos_squared = Vector3::new(pos.x*pos.x, pos.y*pos.y, pos.z*pos.z);
+    let pos_squared = Vector3::new(pos.x * pos.x, pos.y * pos.y, pos.z * pos.z);
     let a = Vector3::new(pos_squared.y, pos_squared.z, pos_squared.x) * 0.5;
     let b = Vector3::new(pos_squared.z, pos_squared.x, pos_squared.y) * 0.5;
-    Vector3::new(pos.x * f64::sqrt(1.0 - a.x - b.x + pos_squared.y*pos_squared.z/3.0),
-                pos.y * f64::sqrt(1.0 - a.y - b.y + pos_squared.z*pos_squared.x/3.0),
-                pos.z * f64::sqrt(1.0 - a.z - b.z + pos_squared.x*pos_squared.y/3.0))
+    Vector3::new(
+        pos.x * f64::sqrt(1.0 - a.x - b.x + pos_squared.y * pos_squared.z / 3.0),
+        pos.y * f64::sqrt(1.0 - a.y - b.y + pos_squared.z * pos_squared.x / 3.0),
+        pos.z * f64::sqrt(1.0 - a.z - b.z + pos_squared.x * pos_squared.y / 3.0),
+    )
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -90,14 +94,13 @@ mod tests {
 
     #[bench]
     fn provide(b: &mut Bencher) {
-        let generator = Generator::new(planet::Description{ radius: 100.0 });
+        let generator = Generator::new(planet::Description { radius: 100.0 });
         b.iter(|| {
             generator.provide(PatchLocation {
                 face: planet::Face::Back,
-                offset: Point2::new(0.0,0.0),
-                size: 1.0
+                offset: Point2::new(0.0, 0.0),
+                size: 1.0,
             })
         });
     }
 }
-

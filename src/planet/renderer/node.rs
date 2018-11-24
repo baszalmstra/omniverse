@@ -35,7 +35,7 @@ impl Node {
 
         Ok(Node {
             vertex_buffer: VertexBuffer::new(facade, &vertices)?,
-            aabb: AABB3::new(min, max)
+            aabb: AABB3::new(min, max),
         })
     }
 }

@@ -15,7 +15,7 @@ pub trait Transformable {
 
     fn rotate_by(&mut self, rotation: &Rotation) -> &mut Self {
         {
-            let t:&mut Transform = self.transform_mut();
+            let t: &mut Transform = self.transform_mut();
             *t = t.prepend_rotation(rotation);
         }
         self
@@ -23,6 +23,10 @@ pub trait Transformable {
 }
 
 impl Transformable for Transform {
-    fn transform(&self) -> &Transform { self }
-    fn transform_mut(&mut self) -> &mut Transform { self }
+    fn transform(&self) -> &Transform {
+        self
+    }
+    fn transform_mut(&mut self) -> &mut Transform {
+        self
+    }
 }

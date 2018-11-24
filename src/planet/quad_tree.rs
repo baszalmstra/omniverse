@@ -3,7 +3,7 @@ use std::option::Option;
 
 pub struct QuadTree<T> {
     pub content: T,
-    pub children: Option<Box<[QuadTree<T>; 4]>>
+    pub children: Option<Box<[QuadTree<T>; 4]>>,
 }
 
 impl<T> QuadTree<T> {

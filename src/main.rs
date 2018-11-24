@@ -4,12 +4,12 @@
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
+extern crate alga;
 extern crate nalgebra;
 extern crate ncollide;
-extern crate alga;
 
-extern crate test;
 extern crate core;
+extern crate test;
 
 use crate::camera::Camera;
 use crate::camera_controller::CameraController;
@@ -64,7 +64,15 @@ fn main() {
         frame.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
         planet_renderer.ensure_resident_patches(&frustum, &planet_transform);
-        planet_renderer.draw(&mut frame, &frustum, &planet_transform);
+        planet_renderer.draw(
+            &mut frame,
+            &frustum,
+            &planet_transform,
+            &planet::DrawParameters {
+                wireframe: true,
+                ..Default::default()
+            },
+        );
 
         frame.finish().unwrap();
 

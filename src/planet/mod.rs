@@ -16,4 +16,4 @@ mod renderer;
 pub use self::face::Face;
 pub use self::generator::Generator;
 pub use self::geometry_provider::{GeometryProvider, PatchGeometry, PatchLocation};
-pub use self::renderer::Renderer;
+pub use self::renderer::{DrawParameters, Renderer};

@@ -1,6 +1,6 @@
-use nalgebra::{Point2, Point3, Vector3};
 use crate::planet::constants::VERTICES_PER_PATCH;
 use crate::planet::Face;
+use nalgebra::{Point2, Point3, Vector3};
 
 /// Location of a patch in the oriented unit quad.
 #[derive(Debug)]
