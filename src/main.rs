@@ -61,7 +61,7 @@ fn main() {
         let aspect_ratio = frame_size.0 as f32 / frame_size.1 as f32;
         let frustum = camera.frustum(aspect_ratio);
 
-        frame.clear_color_and_depth((0.0, 1.0, 0.0, 1.0), 1.0);
+        frame.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
         planet_renderer.ensure_resident_patches(&frustum, &planet_transform);
         planet_renderer.draw(&mut frame, &frustum, &planet_transform);
