@@ -131,9 +131,11 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                                 indices.push(((x + 1) + (y + 0) * VERTICES_PER_PATCH) as u16);
                             }
                         }
+                        println!("{}", indices.len());
                     };
 
                 add_region(0, 0, VERTICES_PER_PATCH / 2 + 1, VERTICES_PER_PATCH / 2 + 1);
+
                 add_region(
                     VERTICES_PER_PATCH / 2,
                     0,
@@ -222,13 +224,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let visible_nodes: VecDeque<VisibleNode> = {
             let mut result = VecDeque::new();
             for face in self.faces.iter() {
-                query_visible_nodes(
+                lod_select(
                     &frustum_planet,
                     &face.root,
                     face.face.into(),
                     self.max_lod_level,
                     self.max_lod_level,
                     &self.split_distances,
+                    false,
                     &mut result,
                 );
             }
@@ -273,10 +276,20 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             let mut command_buffer = self.command_buffer.borrow_mut();
             let mut mapping = command_buffer.map_write();
             for (idx, node) in visible_nodes.iter().enumerate() {
+                let index_count = self.index_buffer.len() as u32;
+                let (first_index, count) = match node.part {
+                    VisibleNodePart::Whole => (0, index_count),
+                    VisibleNodePart::Child(child) => match child {
+                        quad_tree::Child::TopLeft => (0, index_count/4),
+                        quad_tree::Child::TopRight => (index_count/4, index_count/4),
+                        quad_tree::Child::BottomLeft => (index_count/4*2, index_count/4),
+                        quad_tree::Child::BottomRight => (index_count/4*3, index_count/4),
+                    }
+                };
                 mapping.set(idx, DrawCommandIndices {
-                    count: self.index_buffer.len() as u32,
+                    count,
                     instance_count: 1,
-                    first_index: 0,
+                    first_index,
                     base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
                     base_instance: idx as u32,
                 })
@@ -398,71 +411,153 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
+enum VisibleNodePart {
+    Whole,
+    Child(quad_tree::Child)
+}
+
 struct VisibleNode<'a> {
     pub node: &'a Node,
     pub transform_camera: Matrix4<f32>,
+    pub part: VisibleNodePart
 }
 
-fn query_visible_nodes<'a>(
+#[derive(Copy, Clone, PartialEq)]
+enum LODSelectResult {
+    // Undefined value (patch doesn't exist)
+    Undefined,
+
+    // The patch is outside of the frustum
+    OutOfFrustum,
+
+    // The patch is outside of its lod range
+    OutOfRange,
+
+    // The patch was selected
+    Selected,
+}
+
+impl LODSelectResult {
+    fn is_not_selected(&self) -> bool {
+        match self {
+            LODSelectResult::Undefined => true,
+            LODSelectResult::OutOfFrustum => false,
+            LODSelectResult::OutOfRange => true,
+            LODSelectResult::Selected => false,
+        }
+    }
+}
+
+fn lod_select<'a>(
     frustum_planet: &Frustum,
     node: &'a QuadTree<Node>,
     location: PatchLocation,
     depth: usize,
     max_lod_level: usize,
     split_distances: &[f64],
+    parent_completly_in_frustum:bool,
     result: &mut VecDeque<VisibleNode<'a>>,
-) {
+) -> LODSelectResult {
     use frustum::{Containment, Classify};
 
-    let frustum_containment = frustum_planet.classify(&node.content.aabb);
+    let frustum_containment = if parent_completly_in_frustum { Containment::Inside } else { frustum_planet.classify(&node.content.aabb) };
     if frustum_containment == Containment::Outside {
-        return;
+        return LODSelectResult::OutOfFrustum;
     }
 
     if depth == 0 {
+        // The last lod level is just always added to the selection list
         add_to_visible_list(
             frustum_planet,
             &node.content,
             depth,
             split_distances,
             result,
+            VisibleNodePart::Whole
         );
-        return;
+        return LODSelectResult::Selected;
     }
 
+    // Check if the node is within it's LOD range or if it's children should be selected
     let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
     if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
-        add_to_visible_list(
-            frustum_planet,
-            &node.content,
-            depth,
-            split_distances,
-            result,
-        );
-        return;
+        // No matter what, the highest lod level is always selected
+        if depth == max_lod_level {
+            add_to_visible_list(
+                frustum_planet,
+                &node.content,
+                depth,
+                split_distances,
+                result,
+                VisibleNodePart::Whole,
+            );
+            return LODSelectResult::Selected;
+        }
+
+        return LODSelectResult::OutOfRange;
     }
 
     if let Some(ref children) = node.children {
+        let node_completely_in_frustum = frustum_containment == Containment::Inside;
+        let mut children_selection_results = [LODSelectResult::Undefined; 4];
+
         for child in quad_tree::Child::values() {
-            query_visible_nodes(
+            children_selection_results[child.index()] = lod_select(
                 frustum_planet,
                 &(*children)[child.index()],
                 location.split(*child),
                 depth - 1,
                 max_lod_level,
                 split_distances,
+                node_completely_in_frustum,
                 result,
             );
         }
+
+        // If non of the nodes was selected because they either lack geometry or where out of range,
+        // the entire node is simply selected
+        if children_selection_results.iter().all(LODSelectResult::is_not_selected) {
+            // If the node has no children, we'll add it anyway
+            add_to_visible_list(
+                frustum_planet,
+                &node.content,
+                depth,
+                split_distances,
+                result,
+                VisibleNodePart::Whole,
+            );
+            return LODSelectResult::Selected
+        }
+
+        // If any of the nodes is not selected because it has no geometry or because it's out of
+        // range, fill it in with geometry from the parent node
+        for child in quad_tree::Child::values()
+            .filter(|c| children_selection_results[c.index()].is_not_selected()) {
+            add_to_visible_list(frustum_planet,
+                                &node.content,
+                                depth,
+                                split_distances,
+                                result,
+                                VisibleNodePart::Child(*child))
+        }
+
+        if children_selection_results.iter().any(|s| *s == LODSelectResult::Selected) {
+            LODSelectResult::Selected
+        } else {
+            LODSelectResult::OutOfFrustum
+        }
     } else {
+        // If the node has no children, we'll add it anyway
         add_to_visible_list(
             frustum_planet,
             &node.content,
             depth,
             split_distances,
             result,
+            VisibleNodePart::Whole,
         );
-        return;
+        LODSelectResult::Selected
     }
 }
 
@@ -472,12 +567,14 @@ fn add_to_visible_list<'a>(
     _depth: usize,
     _split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
+    part: VisibleNodePart
 ) {
     let node_camera = node.origin - Point3::from_coordinates(frustum_planet.transform.translation.vector);
 
     result.push_back(VisibleNode {
         node,
-        transform_camera: nalgebra::convert(Translation3::from_vector(node_camera).to_homogeneous())
+        transform_camera: nalgebra::convert(Translation3::from_vector(node_camera).to_homogeneous()),
+        part
     })
 }
 

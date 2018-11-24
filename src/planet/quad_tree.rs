@@ -2,7 +2,7 @@ use std::boxed::Box;
 use std::option::Option;
 use std::iter::Iterator;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Child {
     TopLeft,
     TopRight,

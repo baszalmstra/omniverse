@@ -118,7 +118,7 @@ impl<T:Scalar> Classify<AABB3<T>> for Frustum
 
             total_corners_inside += point_inside;
         }
-    
+
         if total_corners_inside == 6 {
             Containment::Inside
         } else {
