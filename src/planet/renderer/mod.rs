@@ -262,7 +262,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 .draw(
                     &self.backing.vertices.vertex_buffer,
                     IndicesSource::MultidrawElement {
-                        commands: command_buffer.as_slice_any(),
+                        commands: command_buffer.slice(0 .. visible_nodes.len()).unwrap().as_slice_any(),
                         indices: self.index_buffer.as_slice_any(),
                         data_type: self.index_buffer.get_indices_type(),
                         primitives: self.index_buffer.get_primitives_type(),
