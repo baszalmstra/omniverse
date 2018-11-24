@@ -22,6 +22,7 @@ mod frustum;
 mod planet;
 mod timeline;
 mod transform;
+mod id_arena;
 
 fn main() {
     use glium::glutin;

@@ -8,16 +8,18 @@ use crate::transform::Transform;
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType};
 use glium::{Frame, IndexBuffer, Program, Surface};
-use nalgebra::{Point2, Point3, Vector2, Vector3};
+use nalgebra::{Point2, Point3, Vector2, Vector3, Matrix4, Translation3};
 use std::rc::Rc;
 
 mod node;
 mod vertex;
+mod node_backing;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
 use crate::planet::geometry_provider::PatchLocation;
 use std::collections::VecDeque;
+use planet::renderer::node_backing::NodeBacking;
 
 pub struct DrawParameters {
     pub wireframe: bool,
@@ -35,6 +37,7 @@ pub struct Renderer<T: planet::GeometryProvider> {
 
     description: Description,
     geometry_provider: T,
+    backing: NodeBacking,
 
     faces: [Face; 6],
     max_lod_level: usize,
@@ -143,16 +146,21 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             last_value = last_value * 2.0;
         }
 
+        let mut backing = NodeBacking::new(facade)?;
+
+        let faces = [
+            generate_face(&mut backing, planet::Face::Front, &geometry_provider),
+            generate_face(&mut backing, planet::Face::Back, &geometry_provider),
+            generate_face(&mut backing, planet::Face::Left, &geometry_provider),
+            generate_face(&mut backing, planet::Face::Right, &geometry_provider),
+            generate_face(&mut backing, planet::Face::Top, &geometry_provider),
+            generate_face(&mut backing, planet::Face::Bottom, &geometry_provider),
+        ];
+
         Ok(Renderer {
             context: facade.get_context().clone(),
-            faces: [
-                generate_face(facade, planet::Face::Front, &geometry_provider)?,
-                generate_face(facade, planet::Face::Back, &geometry_provider)?,
-                generate_face(facade, planet::Face::Left, &geometry_provider)?,
-                generate_face(facade, planet::Face::Right, &geometry_provider)?,
-                generate_face(facade, planet::Face::Top, &geometry_provider)?,
-                generate_face(facade, planet::Face::Bottom, &geometry_provider)?,
-            ],
+            faces,
+            backing,
             geometry_provider,
             description,
             program,
@@ -215,7 +223,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         for node in visible_nodes.iter() {
             frame
                 .draw(
-                    &node.node.vertex_buffer,
+                    self.backing.vertices.slice(node.node.node_id),
                     &self.index_buffer,
                     &self.program,
                     &uniforms,
@@ -240,6 +248,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 &self.context,
                 &frustum_planet,
                 &self.geometry_provider,
+                &mut self.backing,
                 face.face,
                 &mut face.root,
                 Point2::new(0.0, 0.0),
@@ -260,29 +269,30 @@ impl<T: planet::GeometryProvider> Renderer<T> {
     }
 }
 
-fn generate_face<F: ?Sized + Facade>(
-    facade: &F,
+fn generate_face(
+    backing: &mut NodeBacking,
     face: planet::Face,
     geometry_provider: &planet::GeometryProvider,
-) -> Result<Face, Box<std::error::Error>> {
+) -> Face {
     let root_node = Node::new(
-        facade,
+        backing,
         &geometry_provider.provide(PatchLocation {
             face,
             size: 1.0,
             offset: Point2::new(0.0, 0.0),
         }),
-    )?;
-    Ok(Face {
+    );
+    Face {
         face,
         root: QuadTree::new(root_node),
-    })
+    }
 }
 
 fn ensure_resident_children<F: ?Sized + Facade>(
     facade: &F,
     frustum_planet: &Frustum,
     geometry_provider: &planet::GeometryProvider,
+    backing: &mut NodeBacking,
     face: planet::Face,
     node: &mut QuadTree<Node>,
     offset: Point2<f64>,
@@ -297,7 +307,7 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     // If the node is out of range of it's split distance, remove it's children
     let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
     if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
-        merge(node);
+        merge(backing, node);
         return;
     }
 
@@ -306,47 +316,43 @@ fn ensure_resident_children<F: ?Sized + Facade>(
         node.children = Some(Box::new([
             QuadTree::new(
                 Node::new(
-                    facade,
+                    backing,
                     &geometry_provider.provide(PatchLocation {
                         face,
                         size: size * 0.5,
                         offset: Point2::new(offset.x, offset.y),
                     }),
-                )
-                .unwrap(),
+                ),
             ),
             QuadTree::new(
                 Node::new(
-                    facade,
+                    backing,
                     &geometry_provider.provide(PatchLocation {
                         face,
                         size: size * 0.5,
                         offset: Point2::new(offset.x + size * 0.5, offset.y),
                     }),
-                )
-                .unwrap(),
+                ),
             ),
             QuadTree::new(
                 Node::new(
-                    facade,
+                    backing,
                     &geometry_provider.provide(PatchLocation {
                         face,
                         size: size * 0.5,
                         offset: Point2::new(offset.x, offset.y + size * 0.5),
                     }),
-                )
-                .unwrap(),
+                ),
             ),
             QuadTree::new(
                 Node::new(
-                    facade,
+                    backing,
                     &geometry_provider.provide(PatchLocation {
                         face,
                         size: size * 0.5,
                         offset: Point2::new(offset.x + size * 0.5, offset.y + size * 0.5),
                     }),
-                )
-                .unwrap(),
+                ),
             ),
         ]))
     }
@@ -358,6 +364,7 @@ fn ensure_resident_children<F: ?Sized + Facade>(
                     facade,
                     frustum_planet,
                     geometry_provider,
+                    backing,
                     face,
                     &mut (*children)[y * 2 + x],
                     offset + Vector2::new(size * 0.5 * x as f64, size * 0.5 * y as f64),
@@ -372,7 +379,7 @@ fn ensure_resident_children<F: ?Sized + Facade>(
 
 struct VisibleNode<'a> {
     pub node: &'a Node,
-    //pub model: nalgebra::Matrix4<f32>,
+    pub transform_camera: Matrix4<f32>,
 }
 
 fn query_visible_nodes<'a>(
@@ -438,16 +445,27 @@ fn query_visible_nodes<'a>(
 }
 
 fn add_to_visible_list<'a>(
-    _frustum_planet: &Frustum,
+    frustum_planet: &Frustum,
     node: &'a Node,
     _depth: usize,
     _split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
 ) {
-    result.push_back(VisibleNode { node })
+    let node_planet = Vector3::new(0.0, 0.0, 0.0);
+    let node_camera = node_planet - frustum_planet.transform.translation.vector;
+
+    result.push_back(VisibleNode {
+        node,
+        transform_camera: nalgebra::convert(Translation3::from_vector(node_camera).to_homogeneous())
+    })
 }
 
-fn merge(node: &mut QuadTree<Node>) {
+fn merge(backing: &mut NodeBacking, node: &mut QuadTree<Node>) {
+    if let Some(ref mut children) = node.children {
+        for node in children.iter_mut() {
+            backing.release(node.content.node_id);
+        }
+    }
     node.children = None;
 }
 
