@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use super::quad_tree::QuadTree;
+use super::quad_tree;
 use super::Description;
 use crate::frustum::Frustum;
 use crate::planet;
@@ -8,7 +9,7 @@ use crate::transform::Transform;
 use glium::backend::{Context, Facade};
 use glium::index::{PrimitiveType};
 use glium::{Frame, IndexBuffer, Program, Surface};
-use nalgebra::{Point2, Point3, Vector2, Vector3, Matrix4, Translation3};
+use nalgebra::{Point2, Point3, Vector3, Matrix4, Translation3};
 use std::rc::Rc;
 
 mod node;
@@ -22,12 +23,12 @@ use std::collections::VecDeque;
 use planet::renderer::node_backing::NodeBacking;
 
 pub struct DrawParameters {
-    pub wireframe: bool,
+    pub wire_frame: bool,
 }
 
 impl Default for DrawParameters {
     fn default() -> Self {
-        DrawParameters { wireframe: false }
+        DrawParameters { wire_frame: false }
     }
 }
 
@@ -191,9 +192,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             query_visible_nodes(
                 &frustum_planet,
                 &face.root,
-                face.face,
-                Point2::new(0.0, 0.0),
-                1.0,
+                face.face.into(),
                 self.max_lod_level,
                 self.max_lod_level,
                 &self.split_distances,
@@ -212,7 +211,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 ..Default::default()
             },
             backface_culling: glium::BackfaceCullingMode::CullCounterClockwise,
-            polygon_mode: if draw_parameters.wireframe {
+            polygon_mode: if draw_parameters.wire_frame {
                 glium::PolygonMode::Line
             } else {
                 glium::PolygonMode::Line
@@ -249,10 +248,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 &frustum_planet,
                 &self.geometry_provider,
                 &mut self.backing,
-                face.face,
                 &mut face.root,
-                Point2::new(0.0, 0.0),
-                1.0,
+                face.face.into(),
                 self.max_lod_level,
                 &self.split_distances,
             );
@@ -293,10 +290,8 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     frustum_planet: &Frustum,
     geometry_provider: &planet::GeometryProvider,
     backing: &mut NodeBacking,
-    face: planet::Face,
     node: &mut QuadTree<Node>,
-    offset: Point2<f64>,
-    size: f64,
+    location: PatchLocation,
     depth: usize,
     split_distances: &[f64],
 ) {
@@ -317,62 +312,42 @@ fn ensure_resident_children<F: ?Sized + Facade>(
             QuadTree::new(
                 Node::new(
                     backing,
-                    &geometry_provider.provide(PatchLocation {
-                        face,
-                        size: size * 0.5,
-                        offset: Point2::new(offset.x, offset.y),
-                    }),
+                    &geometry_provider.provide(location.top_left()),
                 ),
             ),
             QuadTree::new(
                 Node::new(
                     backing,
-                    &geometry_provider.provide(PatchLocation {
-                        face,
-                        size: size * 0.5,
-                        offset: Point2::new(offset.x + size * 0.5, offset.y),
-                    }),
+                    &geometry_provider.provide(location.top_right()),
                 ),
             ),
             QuadTree::new(
                 Node::new(
                     backing,
-                    &geometry_provider.provide(PatchLocation {
-                        face,
-                        size: size * 0.5,
-                        offset: Point2::new(offset.x, offset.y + size * 0.5),
-                    }),
+                    &geometry_provider.provide(location.bottom_left()),
                 ),
             ),
             QuadTree::new(
                 Node::new(
                     backing,
-                    &geometry_provider.provide(PatchLocation {
-                        face,
-                        size: size * 0.5,
-                        offset: Point2::new(offset.x + size * 0.5, offset.y + size * 0.5),
-                    }),
+                    &geometry_provider.provide(location.bottom_right()),
                 ),
             ),
         ]))
     }
 
     if let Some(ref mut children) = node.children {
-        for y in 0..2 {
-            for x in 0..2 {
-                ensure_resident_children(
-                    facade,
-                    frustum_planet,
-                    geometry_provider,
-                    backing,
-                    face,
-                    &mut (*children)[y * 2 + x],
-                    offset + Vector2::new(size * 0.5 * x as f64, size * 0.5 * y as f64),
-                    size * 0.5,
-                    depth - 1,
-                    split_distances,
-                );
-            }
+        for child in quad_tree::Child::variants() {
+            ensure_resident_children(
+                facade,
+                frustum_planet,
+                geometry_provider,
+                backing,
+                &mut (*children)[child.index()],
+                location.split(*child),
+                depth - 1,
+                split_distances,
+            );
         }
     }
 }
@@ -385,9 +360,7 @@ struct VisibleNode<'a> {
 fn query_visible_nodes<'a>(
     frustum_planet: &Frustum,
     node: &'a QuadTree<Node>,
-    face: planet::Face,
-    offset: Point2<f64>,
-    size: f64,
+    location: PatchLocation,
     depth: usize,
     max_lod_level: usize,
     split_distances: &[f64],
@@ -417,20 +390,16 @@ fn query_visible_nodes<'a>(
     }
 
     if let Some(ref children) = node.children {
-        for y in 0..2 {
-            for x in 0..2 {
-                query_visible_nodes(
-                    frustum_planet,
-                    &(*children)[y * 2 + x],
-                    face,
-                    offset + Vector2::new(size * 0.5 * x as f64, size * 0.5 * y as f64),
-                    size * 0.5,
-                    depth - 1,
-                    max_lod_level,
-                    split_distances,
-                    result,
-                );
-            }
+        for child in quad_tree::Child::variants() {
+            query_visible_nodes(
+                frustum_planet,
+                &(*children)[child.index()],
+                location.split(*child),
+                depth - 1,
+                max_lod_level,
+                split_distances,
+                result,
+            );
         }
     } else {
         add_to_visible_list(

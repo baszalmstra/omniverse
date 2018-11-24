@@ -70,7 +70,7 @@ fn main() {
             &frustum,
             &planet_transform,
             &planet::DrawParameters {
-                wireframe: true,
+                wire_frame: true,
                 ..Default::default()
             },
         );

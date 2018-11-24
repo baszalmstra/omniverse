@@ -1,5 +1,30 @@
 use std::boxed::Box;
 use std::option::Option;
+use std::iter::Iterator;
+
+#[derive(Copy, Clone, Debug)]
+pub enum Child {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight
+}
+
+impl Child {
+    pub fn index(&self) -> usize {
+        match self {
+            Child::TopLeft => 0,
+            Child::TopRight => 1,
+            Child::BottomLeft => 2,
+            Child::BottomRight => 3,
+        }
+    }
+
+    pub fn variants() -> impl Iterator<Item = &'static Child> {
+        static DIRECTIONS: [Child;  4] = [Child::TopLeft, Child::TopRight, Child::BottomLeft, Child::BottomRight];
+        DIRECTIONS.iter()
+    }
+}
 
 pub struct QuadTree<T> {
     pub content: T,
