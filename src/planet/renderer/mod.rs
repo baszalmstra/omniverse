@@ -24,6 +24,7 @@ use planet::renderer::node_backing::NodeBacking;
 use std::os::raw;
 use glium::VertexBuffer;
 use std::cell::RefCell;
+use glium::CapabilitiesSource;
 
 pub struct DrawParameters {
     pub wire_frame: bool,
@@ -241,8 +242,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             ..Default::default()
         };
 
-        {
-            let mut command_buffer =self.command_buffer.borrow_mut();
+        if self.context.get_extensions().gl_arb_multi_draw_indirect {
+            let mut command_buffer = self.command_buffer.borrow_mut();
             let mut mapping = command_buffer.map_write();
             for (idx, node) in visible_nodes.iter().enumerate() {
                 mapping.set(idx, PatchDrawCommand {
@@ -255,7 +256,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             }
         }
 
-        {
+        if self.context.get_extensions().gl_arb_multi_draw_indirect {
             let command_buffer = self.command_buffer.borrow();
             frame
                 .draw(
@@ -271,6 +272,18 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                     &params,
                 )
                 .unwrap();
+        } else {
+            for node in visible_nodes.iter() {
+                frame
+                    .draw(
+                        self.backing.vertices.slice(node.node.node_id),
+                        &self.index_buffer,
+                        &self.program,
+                        &uniforms,
+                        &params,
+                    )
+                    .unwrap();
+            }
         }
     }
 
