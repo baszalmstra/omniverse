@@ -1,3 +1,5 @@
+use alga::linear::AffineTransformation;
+
 pub type Transform = nalgebra::Isometry3<f64>;
 pub type Rotation = nalgebra::UnitQuaternion<f64>;
 
@@ -12,7 +14,15 @@ pub trait Transformable {
     }
 
     fn rotate_by(&mut self, rotation: &Rotation) -> &mut Self {
-        self.transform_mut().append_rotation_mut(rotation);
+        {
+            let t:&mut Transform = self.transform_mut();
+            *t = t.prepend_rotation(rotation);
+        }
         self
     }
+}
+
+impl Transformable for Transform {
+    fn transform(&self) -> &Transform { self }
+    fn transform_mut(&mut self) -> &mut Transform { self }
 }

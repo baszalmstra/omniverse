@@ -5,7 +5,7 @@ use crate::frustum::Frustum;
 use glium::backend::{Context, Facade};
 use glium::index::{IndicesSource, PrimitiveType};
 use glium::{Display, Frame, IndexBuffer, Program, Surface};
-use nalgebra::{Point2, UnitQuaternion};
+use nalgebra::{Point2, Vector3, Vector2, Point3};
 use std::rc::Rc;
 use crate::transform::Transform;
 
@@ -15,6 +15,8 @@ mod vertex;
 pub use self::node::Node;
 pub use self::vertex::Vertex;
 use crate::planet::geometry_provider::PatchLocation;
+use core::borrow::BorrowMut;
+use std::collections::VecDeque;
 
 pub struct Renderer<T: planet::GeometryProvider> {
     /// The OpenGL context
@@ -42,7 +44,6 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         description: Description,
         geometry_provider: T,
     ) -> Result<Renderer<T>, Box<std::error::Error>> {
-        use nalgebra::UnitQuaternion;
         use crate::planet::constants::VERTICES_PER_PATCH;
         use std::f64::consts::PI;
 
@@ -129,7 +130,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let mut split_distances:Vec<f64> = Vec::with_capacity(max_lod_level);
         split_distances.push(2.0);
         let mut last_value= 2.0;
-        for _i in 0..max_lod_level-1 {
+        for _i in 0..max_lod_level {
             split_distances.push(last_value * 2.0);
             last_value = last_value * 2.0;
         }
@@ -157,9 +158,23 @@ impl<T: planet::GeometryProvider> Renderer<T> {
     /// * `frame` - The frame to render to
     /// * `frustum` - The frustum that represents the view to render from in world space.
     /// * `planet_world_transform` - The transformation of the planet relative to the world.
-    pub fn draw(&self, frame: &mut Frame, frustum: &Frustum, _planet_world_transform: &Transform) {
+    pub fn draw(&self, frame: &mut Frame, frustum: &Frustum, planet_world_transform: &Transform) {
+        let frustum_planet = Frustum::new(
+            planet_world_transform.inverse() * frustum.transform,
+            frustum.projection,
+        );
+
+        let mut visible_nodes:VecDeque<VisibleNode> = VecDeque::new();
+        for face in self.faces.iter() {
+            query_visible_nodes(&frustum_planet,
+                                &face.root, face.face, Point2::new(0.0, 0.0),
+                                1.0,
+                                self.max_lod_level, self.max_lod_level,
+                                &self.split_distances, &mut visible_nodes);
+        }
+
         let uniforms = uniform! {
-            viewProjection: Into::<[[f32; 4]; 4]>::into(frustum.view_projection),
+            viewProjection: Into::<[[f32; 4]; 4]>::into(frustum_planet.view_projection),
         };
 
         let params = glium::DrawParameters {
@@ -169,13 +184,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 ..Default::default()
             },
             backface_culling: glium::BackfaceCullingMode::CullCounterClockwise,
+            //polygon_mode: glium::PolygonMode::Line,
             ..Default::default()
         };
 
-        for face in self.faces.iter() {
+        for node in visible_nodes.iter() {
             frame
                 .draw(
-                    &face.root.content.vertex_buffer,
+                    &node.node.vertex_buffer,
                     &self.index_buffer,
                     &self.program,
                     &uniforms,
@@ -189,14 +205,16 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         frustum: &Frustum,
         planet_world_transform: &Transform,
     ) {
-        let _frustum_planet = Frustum::new(
+        let frustum_planet = Frustum::new(
             planet_world_transform.inverse() * frustum.transform,
             frustum.projection,
         );
 
         for face in self.faces.iter_mut() {
             ensure_resident_children(
-                frustum,
+                &self.context,
+                &frustum_planet,
+                &self.geometry_provider,
                 face.face,
                 &mut face.root,
                 Point2::new(0.0, 0.0),
@@ -236,14 +254,128 @@ fn generate_face<F: ?Sized + Facade>(
     })
 }
 
-fn ensure_resident_children(
-    _frustum_planet: &Frustum,
-    _face: planet::Face,
-    _node: &mut QuadTree<Node>,
-    _offset: Point2<f64>,
-    _size: f64,
-    _depth: usize,
-    _split_distances: &[f64]
+fn ensure_resident_children<F: ?Sized + Facade>(
+    facade: &F,
+    frustum_planet: &Frustum,
+    geometry_provider: &planet::GeometryProvider,
+    face: planet::Face,
+    node: &mut QuadTree<Node>,
+    offset: Point2<f64>,
+    size: f64,
+    depth: usize,
+    split_distances: &[f64]
 ) {
+    if depth == 0 { return }
 
+    // If the node is out of range of it's split distance, remove it's children
+    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
+    if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
+        merge(node);
+        return;
+    }
+
+    // Otherwise; ensure that this node has children resident
+    if !node.has_children() {
+        node.children = Some(Box::new([
+            QuadTree::new(Node::new(facade,&geometry_provider.provide(PatchLocation {
+                    face,
+                    size: size*0.5,
+                    offset: Point2::new(offset.x, offset.y),
+                }),
+            ).unwrap()),
+            QuadTree::new(Node::new(facade,&geometry_provider.provide(PatchLocation {
+                face,
+                size: size*0.5,
+                offset: Point2::new(offset.x+size*0.5, offset.y),
+            }),
+            ).unwrap()),
+            QuadTree::new(Node::new(facade,&geometry_provider.provide(PatchLocation {
+                face,
+                size: size*0.5,
+                offset: Point2::new(offset.x, offset.y+size*0.5),
+            }),
+            ).unwrap()),
+            QuadTree::new(Node::new(facade,&geometry_provider.provide(PatchLocation {
+                face,
+                size: size*0.5,
+                offset: Point2::new(offset.x+size*0.5, offset.y+size*0.5),
+            }),
+            ).unwrap()),
+        ]))
+    }
+
+    if let Some(ref mut children) = node.children {
+        for y in 0..2 {
+            for x in 0..2 {
+                ensure_resident_children(facade, frustum_planet, geometry_provider, face,
+                                         &mut (*children)[y * 2 + x],
+                                         offset + Vector2::new(size * 0.5 * x as f64, size * 0.5 * y as f64),
+                                         size * 0.5,
+                                         depth - 1,
+                                         split_distances);
+            }
+        }
+    }
+}
+
+struct VisibleNode<'a> {
+    pub node: &'a Node,
+    //pub model: nalgebra::Matrix4<f32>,
+}
+
+fn query_visible_nodes<'a>(frustum_planet: &Frustum,
+                           node: &'a QuadTree<Node>, face: planet::Face,
+                           offset: Point2<f64>,
+                           size: f64,
+                           depth: usize, max_lod_level: usize,
+                           split_distances: &[f64],
+                           result: &mut VecDeque<VisibleNode<'a>>) {
+
+    if depth == 0 {
+        add_to_visible_list(frustum_planet, &node.content, depth, split_distances, result);
+        return;
+    }
+
+    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
+    if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
+        add_to_visible_list(frustum_planet, &node.content, depth, split_distances, result);
+        return;
+    }
+
+    if let Some(ref children) = node.children {
+        for y in 0..2 {
+            for x in 0..2 {
+                query_visible_nodes(frustum_planet, &(*children)[y * 2 + x],
+                                    face,offset + Vector2::new(size * 0.5 * x as f64, size * 0.5 * y as f64), size * 0.5,
+                                    depth - 1, max_lod_level, split_distances, result);
+            }
+        }
+    } else {
+        add_to_visible_list(frustum_planet, &node.content, depth, split_distances, result);
+        return;
+    }
+}
+
+fn add_to_visible_list<'a>(frustum_planet: &Frustum,
+                       node: &'a Node,
+                       depth: usize,
+                       split_distances: &[f64],
+                       result: &mut VecDeque<VisibleNode<'a>>) {
+    result.push_back(VisibleNode {
+        node
+    })
+}
+
+fn merge(node: &mut QuadTree<Node>) {
+    node.children = None;
+}
+
+fn in_range(aabb:&ncollide::bounding_volume::AABB3<f64>, position:&Point3<f64>, range: f64) -> bool {
+    let min:Vector3<f64> = aabb.mins() - position;
+    let max:Vector3<f64> = position - aabb.maxs();
+    let delta = nalgebra::sup(&Vector3::new(0.0, 0.0, 0.0),
+                  &nalgebra::sup(
+                      &min,
+                      &max));
+    nalgebra::dot(&delta, &delta) <= range*range
 }

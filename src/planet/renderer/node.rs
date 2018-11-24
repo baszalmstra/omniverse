@@ -26,7 +26,7 @@ impl Node {
 
         for (pos, normal) in geometry.positions.iter().zip(geometry.normals.iter()) {
             min = nalgebra::inf(&min, pos);
-            max = nalgebra::sup(&min, pos);
+            max = nalgebra::sup(&max, pos);
             vertices.push(Vertex {
                 position: [pos.x as f32, pos.y as f32, pos.z as f32],
                 normal: [normal.x as f32, normal.y as f32, normal.z as f32],

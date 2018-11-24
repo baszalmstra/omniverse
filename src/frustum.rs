@@ -14,7 +14,7 @@ impl Frustum {
             transform,
             projection,
             view_projection: projection * na::convert::<na::Matrix4<f64>, na::Matrix4<f32>>(
-                transform.to_homogeneous(),
+                transform.inverse().to_homogeneous(),
             ),
         }
     }

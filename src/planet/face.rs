@@ -1,7 +1,7 @@
 use crate::transform::Rotation;
 use std::f64::consts::PI;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Face {
     Left,
     Right,

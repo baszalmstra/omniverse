@@ -30,10 +30,10 @@ impl CameraController {
                 virtual_keycode: Some(key),
                 ..
             } => match key {
-                W => self.movement_vector.z = 1.0,
-                S => self.movement_vector.z = -1.0,
-                A => self.movement_vector.x = 1.0,
-                D => self.movement_vector.x = -1.0,
+                W => self.movement_vector.z = -1.0,
+                S => self.movement_vector.z = 1.0,
+                A => self.movement_vector.x = -1.0,
+                D => self.movement_vector.x = 1.0,
                 _ => {}
             },
             KeyboardInput {
@@ -42,28 +42,28 @@ impl CameraController {
                 ..
             } => match key {
                 W => {
-                    self.movement_vector.z = if self.movement_vector.z > 0.0 {
-                        0.0
-                    } else {
-                        self.movement_vector.z
-                    }
-                }
-                S => {
                     self.movement_vector.z = if self.movement_vector.z < 0.0 {
                         0.0
                     } else {
                         self.movement_vector.z
                     }
                 }
+                S => {
+                    self.movement_vector.z = if self.movement_vector.z > 0.0 {
+                        0.0
+                    } else {
+                        self.movement_vector.z
+                    }
+                }
                 A => {
-                    self.movement_vector.x = if self.movement_vector.x > 0.0 {
+                    self.movement_vector.x = if self.movement_vector.x < 0.0 {
                         0.0
                     } else {
                         self.movement_vector.x
                     }
                 }
                 D => {
-                    self.movement_vector.x = if self.movement_vector.x < 0.0 {
+                    self.movement_vector.x = if self.movement_vector.x > 0.0 {
                         0.0
                     } else {
                         self.movement_vector.x
@@ -84,13 +84,14 @@ impl CameraController {
 
         transform.rotate_by(&Rotation::from_axis_angle(
             &Vector3::y_axis(),
-            self.delta_mouse_position.x * 0.003,
+            self.delta_mouse_position.x * -0.003,
         ));
         transform.rotate_by(&Rotation::from_axis_angle(
             &Vector3::x_axis(),
-            self.delta_mouse_position.y * 0.003,
+            self.delta_mouse_position.y * -0.003,
         ));
         self.delta_mouse_position = Vector2::new(0.0, 0.0);
-        transform.translate_by(&translation);
+        let local_translation = transform.transform() * translation;
+        transform.translate_by(&local_translation);
     }
 }

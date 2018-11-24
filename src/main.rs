@@ -6,8 +6,10 @@ extern crate glium;
 extern crate lazy_static;
 extern crate nalgebra;
 extern crate ncollide;
+extern crate alga;
 
 extern crate test;
+extern crate core;
 
 use crate::camera::Camera;
 use crate::camera_controller::CameraController;
@@ -31,11 +33,11 @@ fn main() {
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, -150.0));
+    camera.translate_by(&Vector3::new(0.0, 0.0, 1500.0));
 
-    let planet_desc = planet::Description { radius: 100.0 };
-    let planet_transform = Transform::identity();
-    let planet_renderer =
+    let planet_desc = planet::Description { radius: 1000.0 };
+    let mut planet_transform = Transform::identity();
+    let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc, planet::Generator::new(planet_desc))
             .expect("Could not instantiate renderer");
 
@@ -49,14 +51,6 @@ fn main() {
     let mut last_logical_mouse_position = glutin::dpi::LogicalPosition::new(0.0, 0.0);
     let mut mouse_down_mouse_position = last_logical_mouse_position;
 
-    let dpi = display.gl_window().get_hidpi_factor();
-    let mut screen = display
-        .gl_window()
-        .get_inner_size()
-        .ok_or("get_inner_size")
-        .unwrap()
-        .to_physical(dpi);
-
     while !closed {
         timeline.next_frame();
 
@@ -69,6 +63,7 @@ fn main() {
 
         frame.clear_color_and_depth((0.0, 1.0, 0.0, 1.0), 1.0);
 
+        planet_renderer.ensure_resident_patches(&frustum, &planet_transform);
         planet_renderer.draw(&mut frame, &frustum, &planet_transform);
 
         frame.finish().unwrap();
@@ -78,9 +73,6 @@ fn main() {
                 glutin::WindowEvent::CloseRequested => closed = true,
                 glutin::WindowEvent::KeyboardInput { input, .. } => {
                     camera_controller.key_event(&input);
-                }
-                glutin::WindowEvent::Resized(size) => {
-                    screen = size.to_physical(dpi);
                 }
                 glutin::WindowEvent::MouseInput {
                     state: glutin::ElementState::Pressed,

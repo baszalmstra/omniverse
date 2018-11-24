@@ -5,6 +5,7 @@ authors = ["Bas Zalmstra <zalmstra.bas@gmail.com>"]
 
 [dependencies]
 glium = "0.22"
+alga = "0.5"
 nalgebra = "0.14"
 ncollide = "0.14"
 lazy_static = "1.2"

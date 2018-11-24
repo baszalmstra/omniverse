@@ -3,6 +3,7 @@ use crate::planet::constants::VERTICES_PER_PATCH;
 use crate::planet::Face;
 
 /// Location of a patch in the oriented unit quad.
+#[derive(Debug)]
 pub struct PatchLocation {
     pub face: Face,
 
