@@ -39,6 +39,10 @@ where
         self.vertex_buffer.slice_mut(start .. end )
             .expect("Unable to slice GeometryBuffer")
     }
+
+    pub fn base_vertex(&self, id:NodeId) -> u32 {
+        (id.0 * self.vertices_per_patch) as u32
+    }
 }
 
 pub struct NodeBacking {

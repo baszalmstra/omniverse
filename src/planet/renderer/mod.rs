@@ -7,7 +7,7 @@ use crate::frustum::Frustum;
 use crate::planet;
 use crate::transform::Transform;
 use glium::backend::{Context, Facade};
-use glium::index::{PrimitiveType};
+use glium::index::{PrimitiveType, IndicesSource};
 use glium::{Frame, IndexBuffer, Program, Surface};
 use nalgebra::{Point2, Point3, Vector3, Matrix4, Translation3};
 use std::rc::Rc;
@@ -21,6 +21,9 @@ pub use self::vertex::Vertex;
 use crate::planet::geometry_provider::PatchLocation;
 use std::collections::VecDeque;
 use planet::renderer::node_backing::NodeBacking;
+use std::os::raw;
+use glium::VertexBuffer;
+use std::cell::RefCell;
 
 pub struct DrawParameters {
     pub wire_frame: bool,
@@ -39,6 +42,7 @@ pub struct Renderer<T: planet::GeometryProvider> {
     description: Description,
     geometry_provider: T,
     backing: NodeBacking,
+    command_buffer: RefCell<VertexBuffer<PatchDrawCommand>>,
 
     faces: [Face; 6],
     max_lod_level: usize,
@@ -53,13 +57,30 @@ struct Face {
     pub root: QuadTree<Node>,
 }
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct PatchDrawCommand {
+    /// Number of indices to use in the index buffer.
+    pub count: raw::c_uint,
+    /// Number of instances to draw. If it's `0`, nothing will be drawn.
+    pub instance_count: raw::c_uint,
+    /// First index to draw in the index buffer.
+    pub first_index: raw::c_uint,
+    /// Value to add to each index.
+    pub base_vertex: raw::c_uint,
+    /// Numero of the first instance to draw.
+    pub base_instance: raw::c_uint,
+}
+
+implement_vertex!(PatchDrawCommand, count, instance_count, first_index, base_vertex, base_instance);
+
 impl<T: planet::GeometryProvider> Renderer<T> {
     pub fn new<F: ?Sized + Facade>(
         facade: &F,
         description: Description,
         geometry_provider: T,
     ) -> Result<Renderer<T>, Box<std::error::Error>> {
-        use crate::planet::constants::VERTICES_PER_PATCH;
+        use crate::planet::constants::{VERTICES_PER_PATCH, MAX_PATCH_COUNT};
         use std::f64::consts::PI;
 
         let program = {
@@ -168,6 +189,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             index_buffer,
             max_lod_level,
             split_distances,
+            command_buffer: RefCell::new(VertexBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?)
         })
     }
 
@@ -219,11 +241,31 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             ..Default::default()
         };
 
-        for node in visible_nodes.iter() {
+        {
+            let mut command_buffer =self.command_buffer.borrow_mut();
+            let mut mapping = command_buffer.map_write();
+            for (idx, node) in visible_nodes.iter().enumerate() {
+                mapping.set(idx, PatchDrawCommand {
+                    count: self.index_buffer.len() as u32,
+                    instance_count: 1,
+                    first_index: 0,
+                    base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
+                    base_instance: idx as u32
+                })
+            }
+        }
+
+        {
+            let command_buffer = self.command_buffer.borrow();
             frame
                 .draw(
-                    self.backing.vertices.slice(node.node.node_id),
-                    &self.index_buffer,
+                    &self.backing.vertices.vertex_buffer,
+                    IndicesSource::MultidrawElement {
+                        commands: command_buffer.as_slice_any(),
+                        indices: self.index_buffer.as_slice_any(),
+                        data_type: self.index_buffer.get_indices_type(),
+                        primitives: self.index_buffer.get_primitives_type(),
+                    },
                     &self.program,
                     &uniforms,
                     &params,
@@ -337,7 +379,7 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     }
 
     if let Some(ref mut children) = node.children {
-        for child in quad_tree::Child::variants() {
+        for child in quad_tree::Child::values() {
             ensure_resident_children(
                 facade,
                 frustum_planet,
@@ -390,7 +432,7 @@ fn query_visible_nodes<'a>(
     }
 
     if let Some(ref children) = node.children {
-        for child in quad_tree::Child::variants() {
+        for child in quad_tree::Child::values() {
             query_visible_nodes(
                 frustum_planet,
                 &(*children)[child.index()],

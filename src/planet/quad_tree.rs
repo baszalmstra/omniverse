@@ -20,7 +20,7 @@ impl Child {
         }
     }
 
-    pub fn variants() -> impl Iterator<Item = &'static Child> {
+    pub fn values() -> impl Iterator<Item = &'static Child> {
         static DIRECTIONS: [Child;  4] = [Child::TopLeft, Child::TopRight, Child::BottomLeft, Child::BottomRight];
         DIRECTIONS.iter()
     }

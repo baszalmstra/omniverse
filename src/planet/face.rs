@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::transform::Rotation;
 use std::f64::consts::PI;
 
@@ -30,5 +32,10 @@ impl Face {
             Face::Front => *ORIENTATION_FRONT,
             Face::Back => *ORIENTATION_BACK,
         }
+    }
+
+    pub fn values() -> impl Iterator<Item = &'static Face> {
+        static VALUES: [Face;  6] = [Face::Left, Face::Right, Face::Top, Face::Bottom, Face::Front, Face::Back];
+        VALUES.iter()
     }
 }
