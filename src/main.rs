@@ -36,7 +36,7 @@ fn main() {
     camera.translate_by(&Vector3::new(0.0, 0.0, 1500.0));
 
     let planet_desc = planet::Description { radius: 1000.0 };
-    let mut planet_transform = Transform::identity();
+    let planet_transform = Transform::identity();
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc, planet::Generator::new(planet_desc))
             .expect("Could not instantiate renderer");

@@ -1,9 +1,8 @@
-use super::{Description, Vertex};
+use super::{Vertex};
 use crate::planet;
 use glium::backend::Facade;
 use glium::VertexBuffer;
-use nalgebra::{Point2, Point3, UnitQuaternion};
-use ncollide::bounding_volume::{point_cloud_aabb, AABB3};
+use ncollide::bounding_volume::{AABB3};
 
 /// Contains geometry information for a single node of a quad tree for a face.
 pub struct Node {

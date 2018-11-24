@@ -2,8 +2,7 @@ use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
-use nalgebra::{Point2, Point3, Vector2, Vector3};
-use std::mem;
+use nalgebra::{Point3, Vector2, Vector3};
 
 pub struct Generator {
     description: planet::Description,
@@ -12,10 +11,6 @@ pub struct Generator {
 impl Generator {
     pub fn new(description: planet::Description) -> Generator {
         Generator { description }
-    }
-
-    pub fn description(&self) -> &planet::Description {
-        &self.description
     }
 
     fn compute_vertex(&self, x: f64, y: f64, patch: &PatchLocation) -> Point3<f64> {
@@ -91,6 +86,7 @@ fn morph(pos: Vector3<f64>) -> Vector3<f64> {
 mod tests {
     use super::*;
     use test::Bencher;
+    use nalgebra::Point2;
 
     #[bench]
     fn provide(b: &mut Bencher) {

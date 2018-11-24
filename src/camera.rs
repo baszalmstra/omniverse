@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::frustum::Frustum;
 use crate::transform::{Transform, Transformable};
 use nalgebra;

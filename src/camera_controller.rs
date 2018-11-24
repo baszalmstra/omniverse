@@ -1,13 +1,12 @@
 use crate::transform::Rotation;
 use crate::transform::Transformable;
-use glium::glutin::dpi::PhysicalPosition;
 use glium::glutin::KeyboardInput;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
 
 pub struct CameraController {
     movement_vector: Vector3<f64>,
-    up_vector: nalgebra::Unit<Vector3<f64>>,
+    //up_vector: nalgebra::Unit<Vector3<f64>>,
     delta_mouse_position: Vector2<f64>,
 }
 
@@ -15,7 +14,7 @@ impl CameraController {
     pub fn new() -> CameraController {
         CameraController {
             movement_vector: Vector3::new(0.0, 0.0, 0.0),
-            up_vector: Vector3::y_axis(),
+            //up_vector: Vector3::y_axis(),
             delta_mouse_position: Vector2::new(0.0, 0.0),
         }
     }

@@ -1,11 +1,13 @@
+#![allow(dead_code)]
+
 use super::quad_tree::QuadTree;
 use super::Description;
 use crate::frustum::Frustum;
 use crate::planet;
 use crate::transform::Transform;
 use glium::backend::{Context, Facade};
-use glium::index::{IndicesSource, PrimitiveType};
-use glium::{Display, Frame, IndexBuffer, Program, Surface};
+use glium::index::{PrimitiveType};
+use glium::{Frame, IndexBuffer, Program, Surface};
 use nalgebra::{Point2, Point3, Vector2, Vector3};
 use std::rc::Rc;
 
@@ -14,7 +16,6 @@ mod vertex;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
-use core::borrow::BorrowMut;
 use crate::planet::geometry_provider::PatchLocation;
 use std::collections::VecDeque;
 
@@ -437,10 +438,10 @@ fn query_visible_nodes<'a>(
 }
 
 fn add_to_visible_list<'a>(
-    frustum_planet: &Frustum,
+    _frustum_planet: &Frustum,
     node: &'a Node,
-    depth: usize,
-    split_distances: &[f64],
+    _depth: usize,
+    _split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
 ) {
     result.push_back(VisibleNode { node })
