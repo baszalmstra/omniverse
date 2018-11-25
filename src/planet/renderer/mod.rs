@@ -30,6 +30,7 @@ use glium::{
     index::DrawCommandsIndicesBuffer
 };
 use glium::index::DrawCommandIndices;
+use planet::quad_tree::HasAABB;
 
 pub struct DrawParameters {
     pub wire_frame: bool,
@@ -460,7 +461,7 @@ fn lod_select<'a>(
 ) -> LODSelectResult {
     use frustum::{Containment, Classify};
 
-    let frustum_containment = if parent_completly_in_frustum { Containment::Inside } else { frustum_planet.classify(&node.content.aabb) };
+    let frustum_containment = if parent_completly_in_frustum { Containment::Inside } else { frustum_planet.classify(&node.bounding_box()) };
     if frustum_containment == Containment::Outside {
         return LODSelectResult::OutOfFrustum;
     }
@@ -480,7 +481,7 @@ fn lod_select<'a>(
 
     // Check if the node is within it's LOD range or if it's children should be selected
     let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
-    if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
+    if !in_range(&node.bounding_box(), &frustum_pos, split_distances[depth]) {
         // No matter what, the highest lod level is always selected
         if depth == max_lod_level {
             add_to_visible_list(

@@ -1,9 +1,10 @@
 use super::{Vertex};
 use crate::planet;
 use nalgebra::{Point3};
-use ncollide::bounding_volume::{AABB3};
+use ncollide::bounding_volume::{AABB, AABB3};
 use planet::renderer::node_backing::NodeId;
 use planet::renderer::node_backing::NodeBacking;
+use planet::quad_tree::HasAABB;
 
 /// Contains geometry information for a single node of a quad tree for a face.
 pub struct Node {
@@ -45,4 +46,8 @@ impl Node {
             origin
         }
     }
+}
+
+impl HasAABB<Point3<f64>> for Node where {
+    fn bounding_box(&self) -> AABB<Point3<f64>> { self.aabb.clone() }
 }

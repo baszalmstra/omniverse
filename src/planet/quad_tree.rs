@@ -1,6 +1,7 @@
 use std::boxed::Box;
 use std::option::Option;
 use std::iter::Iterator;
+use ncollide::bounding_volume::AABB;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Child {
@@ -42,4 +43,12 @@ impl<T> QuadTree<T> {
     pub fn has_children(&self) -> bool {
         self.children.is_some()
     }
+}
+
+pub trait HasAABB<N> {
+    fn bounding_box(&self) -> AABB<N>;
+}
+
+impl<N, T: HasAABB<N>> HasAABB<N> for QuadTree<T> {
+    fn bounding_box(&self) -> AABB<N> { self.content.bounding_box() }
 }
