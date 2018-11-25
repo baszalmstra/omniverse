@@ -23,7 +23,7 @@ pub trait IdArena:IdGenerator {
 pub struct SimpleIdArena {
     counter: AtomicUsize,
     free: Mutex<Vec<usize>>,
-    capacity: usize
+    capacity: usize,
 }
 
 impl SimpleIdArena {
@@ -31,7 +31,7 @@ impl SimpleIdArena {
         SimpleIdArena {
             counter: AtomicUsize::new(0),
             free: Mutex::new(Vec::new()),
-            capacity
+            capacity,
         }
     }
 }

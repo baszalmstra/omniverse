@@ -1,36 +1,32 @@
 #![allow(dead_code)]
 
-use super::quad_tree::QuadTree;
 use super::quad_tree;
+use super::quad_tree::QuadTree;
 use super::Description;
 use crate::frustum::Frustum;
 use crate::planet;
 use crate::transform::Transform;
-use nalgebra::{Point3, Vector3, Matrix4, Translation3};
+use nalgebra::{Matrix4, Point3, Translation3, Vector3};
 use std::rc::Rc;
 
 mod node;
-mod vertex;
 mod node_backing;
+mod vertex;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
 use crate::planet::geometry_provider::PatchLocation;
-use std::collections::VecDeque;
+use glium::index::DrawCommandIndices;
+use glium::{
+    backend::{Context, Facade},
+    index::DrawCommandsIndicesBuffer,
+    index::{IndicesSource, PrimitiveType},
+    Frame, IndexBuffer, Program, Surface, VertexBuffer,
+};
+use planet::quad_tree::HasAABB;
 use planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
-use glium::{
-    VertexBuffer,
-    Frame,
-    IndexBuffer,
-    Program,
-    Surface,
-    index::{PrimitiveType, IndicesSource},
-    backend::{Context, Facade},
-    index::DrawCommandsIndicesBuffer
-};
-use glium::index::DrawCommandIndices;
-use planet::quad_tree::HasAABB;
+use std::collections::VecDeque;
 
 pub struct DrawParameters {
     pub wire_frame: bool,
@@ -44,10 +40,13 @@ impl Default for DrawParameters {
 
 #[derive(Copy, Clone)]
 struct PerNodeInstanceVertex {
-    pose_camera: [[f32;4]; 4],
+    pose_camera: [[f32; 4]; 4],
+    atlas_index: u32,
+    morph_range: (f32, f32),
+    lod_level: u16
 }
 
-implement_vertex!(PerNodeInstanceVertex, pose_camera);
+implement_vertex!(PerNodeInstanceVertex, pose_camera, atlas_index, morph_range, lod_level);
 
 pub struct Renderer<T: planet::GeometryProvider> {
     /// The OpenGL context
@@ -78,38 +77,110 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         description: Description,
         geometry_provider: T,
     ) -> Result<Renderer<T>, Box<std::error::Error>> {
-        use crate::planet::constants::{VERTICES_PER_PATCH, MAX_PATCH_COUNT};
+        use crate::planet::constants::{MAX_PATCH_COUNT, VERTICES_PER_PATCH};
         use std::f64::consts::PI;
 
         let program = {
             let vertex_shader_src = r#"
-                #version 330 core
+                #version 430 core
+                #extension GL_EXT_texture_array : enable
 
-                in vec3 position;
-                in vec3 normal;
+                in vec2 position;
+                in vec2 position_morph_target;
+                in vec2 local_texcoords;
+                in vec2 local_texcoords_morph_target;
+
+                in uint atlas_index;
+                in uint lod_level;
                 in mat4 pose_camera;
+                in vec2 morph_range;
 
-                out vec3 Normal;
+                out vec2 Texcoords;
+                out vec4 Color;
+                flat out uint AtlasIndex;
 
-                uniform mat4 viewProjection;
+                uniform mat4 view_projection;
+                uniform sampler2DArray height_atlas;
+                uniform uint vertices_per_patch;
+
+                float sample_height(vec2 texcoord) {
+                    // Compute the modified texture coordinates
+                    ivec2 texture_size = textureSize(height_atlas, 0).xy;
+                    vec2 texel_size = 1.0 / texture_size.xy;
+                    vec2 height_atlas_texcoords = texcoord * (vec2(1.0, 1.0) - texel_size) + texel_size*0.5;
+                    return texture2DArray(height_atlas, vec3(height_atlas_texcoords, atlas_index)).r;
+                }
+
+                vec3 random_colors[18] = vec3[18](
+                    vec3(230, 25, 75) * (1.0/255.0),
+                    vec3(60, 180, 75) * (1.0/255.0),
+                    vec3(255, 225, 25) * (1.0/255.0),
+                    vec3(0, 130, 200) * (1.0/255.0),
+                    vec3(245, 130, 48) * (1.0/255.0),
+                    vec3(145, 30, 180) * (1.0/255.0),
+                    vec3(70, 240, 240) * (1.0/255.0),
+                    vec3(240, 50, 230) * (1.0/255.0),
+                    vec3(210, 245, 60) * (1.0/255.0),
+                    vec3(250, 190, 190) * (1.0/255.0),
+                    vec3(0, 128, 128) * (1.0/255.0),
+                    vec3(230, 190, 255) * (1.0/255.0),
+                    vec3(170, 110, 40) * (1.0/255.0),
+                    vec3(255, 250, 200) * (1.0/255.0),
+                    vec3(128, 0, 0) * (1.0/255.0),
+                    vec3(170, 255, 195) * (1.0/255.0),
+                    vec3(128, 128, 0) * (1.0/255.0),
+                    vec3(255, 215, 180) * (1.0/255.0)
+                );
 
                 void main() {
-                    gl_Position = viewProjection*(pose_camera*vec4(position, 1.0));
+                    // Construct the patch local coordinates and transform them to camera space
+                    vec3 pos_patch = vec3(position.xy, sample_height(local_texcoords));
+                    vec4 pos_camera = pose_camera*vec4(pos_patch, 1.0);
 
-                    Normal = normal;
+                    // Determine the camera distance
+                    float camera_distance = length(pos_camera);
+                    float morph_factor = max(0,min(1,(camera_distance-morph_range.x)/(morph_range.y-morph_range.x)));
+
+                    // Determine the actual position and local texcoords of the vertex based on the morph factor
+                    vec2 morphed_local_texcoords = local_texcoords - fract(local_texcoords * (vertices_per_patch-1) * 0.5) * 2.0 / vertices_per_patch * morph_factor;
+                    vec2 morphed_position = mix(position, position_morph_target, morph_factor);
+
+                    // Construct the patch local coordinates and transform them to camera space
+                    vec3 morphed_pos_patch = vec3(morphed_position, sample_height(morphed_local_texcoords));
+                    vec4 morphed_pos_camera = pose_camera*vec4(morphed_pos_patch, 1.0);
+
+                    gl_Position = view_projection*morphed_pos_camera;
+
+                    Texcoords = morphed_local_texcoords;
+                    AtlasIndex = atlas_index;
+                    Color = vec4(mix(random_colors[lod_level], random_colors[lod_level+1], morph_factor), 1);
                 }
             "#;
 
             let fragment_shader_src = r#"
-                #version 330 core
+                #version 430 core
+                #extension GL_EXT_texture_array : enable
 
                 in vec3 Normal;
+                in vec2 Texcoords;
+                in vec4 Color;
+                flat in uint AtlasIndex;
+
+                uniform sampler2DArray normal_atlas;
 
                 out vec4 color;
 
                 void main() {
-                    float nDotL = max(0, dot(Normal, vec3(1,0,0)));
-                    color = vec4(nDotL,nDotL,nDotL, 1.0);
+                    // Compute the modified texture coordinates
+                    ivec2 texture_size = textureSize(normal_atlas, 0).xy;
+                    vec2 texel_size = 1.0 / texture_size.xy;
+                    vec2 normal_atlas_texcoords = Texcoords * (vec2(1.0, 1.0) - texel_size) + texel_size*0.5;
+
+                    // Sample the normal from the texture atlas
+                    vec3 normal = texture2DArray(normal_atlas, vec3(normal_atlas_texcoords, AtlasIndex)).xyz;
+
+                    float nDotL = max(0, dot(normal, vec3(1,0,0)));
+                    color = vec4(vec3(nDotL), 1.0) * Color;
                 }
             "#;
 
@@ -163,9 +234,10 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let mut split_distances: Vec<f64> = Vec::with_capacity(max_lod_level);
         split_distances.push(2.0);
         let mut last_value = 2.0;
-        for _i in 0..max_lod_level {
-            split_distances.push(last_value * 2.0);
-            last_value = last_value * 2.0;
+        for i in 0..max_lod_level {
+            let split_amount = 2.0;
+            split_distances.push(last_value * split_amount);
+            last_value = last_value * split_amount;
         }
 
         let mut backing = NodeBacking::new(facade)?;
@@ -189,8 +261,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             index_buffer,
             max_lod_level,
             split_distances,
-            per_visible_node_buffer: RefCell::new(VertexBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?),
-            command_buffer: RefCell::new(DrawCommandsIndicesBuffer::empty_persistent(facade, MAX_PATCH_COUNT)?)
+            per_visible_node_buffer: RefCell::new(VertexBuffer::empty_persistent(
+                facade,
+                MAX_PATCH_COUNT,
+            )?),
+            command_buffer: RefCell::new(DrawCommandsIndicesBuffer::empty_persistent(
+                facade,
+                MAX_PATCH_COUNT,
+            )?),
         })
     }
 
@@ -240,7 +318,12 @@ impl<T: planet::GeometryProvider> Renderer<T> {
 
         // Setup all uniforms for drawing
         let uniforms = uniform! {
-            viewProjection: Into::<[[f32; 4]; 4]>::into(projection_frustum.view_projection),
+            view_projection: Into::<[[f32; 4]; 4]>::into(projection_frustum.view_projection),
+            vertices_per_patch: planet::constants::VERTICES_PER_PATCH as u32,
+            height_atlas: self.backing.heights.texture.sampled()
+                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
+            normal_atlas: self.backing.normals.texture.sampled()
+                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear)
         };
 
         // Setup render pipeline
@@ -254,7 +337,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             polygon_mode: if draw_parameters.wire_frame {
                 glium::PolygonMode::Line
             } else {
-                glium::PolygonMode::Line
+                glium::PolygonMode::Fill
             },
             ..Default::default()
         };
@@ -264,9 +347,15 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             let mut node_instance_data = self.per_visible_node_buffer.borrow_mut();
             let mut mapping = node_instance_data.map_write();
             for (idx, node) in visible_nodes.iter().enumerate() {
-                mapping.set(idx, PerNodeInstanceVertex {
-                    pose_camera: node.transform_camera.into()
-                })
+                mapping.set(
+                    idx,
+                    PerNodeInstanceVertex {
+                        pose_camera: node.transform_camera.into(),
+                        atlas_index: self.backing.atlas_index(node.node.node_id),
+                        morph_range: node.morph_range,
+                        lod_level: node.lod_level
+                    },
+                )
             }
         }
 
@@ -280,28 +369,34 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 let (first_index, count) = match node.part {
                     VisibleNodePart::Whole => (0, index_count),
                     VisibleNodePart::Child(child) => match child {
-                        quad_tree::Child::TopLeft => (0, index_count/4),
-                        quad_tree::Child::TopRight => (index_count/4, index_count/4),
-                        quad_tree::Child::BottomLeft => (index_count/4*2, index_count/4),
-                        quad_tree::Child::BottomRight => (index_count/4*3, index_count/4),
-                    }
+                        quad_tree::Child::TopLeft => (0, index_count / 4),
+                        quad_tree::Child::TopRight => (index_count / 4, index_count / 4),
+                        quad_tree::Child::BottomLeft => (index_count / 4 * 2, index_count / 4),
+                        quad_tree::Child::BottomRight => (index_count / 4 * 3, index_count / 4),
+                    },
                 };
-                mapping.set(idx, DrawCommandIndices {
-                    count,
-                    instance_count: 1,
-                    first_index,
-                    base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
-                    base_instance: idx as u32,
-                })
+                mapping.set(
+                    idx,
+                    DrawCommandIndices {
+                        count,
+                        instance_count: 1,
+                        first_index,
+                        base_vertex: self.backing.vertices.base_vertex(node.node.node_id),
+                        base_instance: idx as u32,
+                    },
+                )
             }
         }
 
         let command_buffer = self.command_buffer.borrow();
-        let command_buffer_slice = command_buffer.slice(0 .. visible_nodes.len()).unwrap();
+        let command_buffer_slice = command_buffer.slice(0..visible_nodes.len()).unwrap();
         let node_instance_data = self.per_visible_node_buffer.borrow();
         frame
             .draw(
-                (&self.backing.vertices.vertex_buffer, node_instance_data.per_instance().unwrap()),
+                (
+                    &self.backing.vertices.vertex_buffer,
+                    node_instance_data.per_instance().unwrap(),
+                ),
                 IndicesSource::MultidrawElement {
                     commands: command_buffer_slice.as_slice_any(),
                     indices: self.index_buffer.as_slice_any(),
@@ -313,7 +408,6 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 &params,
             )
             .unwrap();
-
     }
 
     pub fn ensure_resident_patches(
@@ -357,10 +451,7 @@ fn generate_face(
 ) -> Face {
     Face {
         face,
-        root: QuadTree::new(Node::new(
-            backing,
-            &geometry_provider.provide(face.into()),
-        )),
+        root: QuadTree::new(Node::new(backing, &geometry_provider.provide(face.into()))),
     }
 }
 
@@ -388,10 +479,22 @@ fn ensure_resident_children<F: ?Sized + Facade>(
     // Otherwise; ensure that this node has children resident
     if !node.has_children() {
         node.children = Some(Box::new([
-            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.top_left()))),
-            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.top_right()))),
-            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.bottom_left()))),
-            QuadTree::new(Node::new(backing,&geometry_provider.provide(location.bottom_right()))),
+            QuadTree::new(Node::new(
+                backing,
+                &geometry_provider.provide(location.top_left()),
+            )),
+            QuadTree::new(Node::new(
+                backing,
+                &geometry_provider.provide(location.top_right()),
+            )),
+            QuadTree::new(Node::new(
+                backing,
+                &geometry_provider.provide(location.bottom_left()),
+            )),
+            QuadTree::new(Node::new(
+                backing,
+                &geometry_provider.provide(location.bottom_right()),
+            )),
         ]))
     }
 
@@ -414,13 +517,15 @@ fn ensure_resident_children<F: ?Sized + Facade>(
 #[derive(Copy, Clone, PartialEq)]
 enum VisibleNodePart {
     Whole,
-    Child(quad_tree::Child)
+    Child(quad_tree::Child),
 }
 
 struct VisibleNode<'a> {
     pub node: &'a Node,
     pub transform_camera: Matrix4<f32>,
-    pub part: VisibleNodePart
+    pub part: VisibleNodePart,
+    pub morph_range: (f32, f32),
+    pub lod_level: u16,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -456,27 +561,18 @@ fn lod_select<'a>(
     depth: usize,
     max_lod_level: usize,
     split_distances: &[f64],
-    parent_completly_in_frustum:bool,
+    parent_completly_in_frustum: bool,
     result: &mut VecDeque<VisibleNode<'a>>,
 ) -> LODSelectResult {
-    use frustum::{Containment, Classify};
+    use frustum::{Classify, Containment};
 
-    let frustum_containment = if parent_completly_in_frustum { Containment::Inside } else { frustum_planet.classify(&node.bounding_box()) };
+    let frustum_containment = if parent_completly_in_frustum {
+        Containment::Inside
+    } else {
+        frustum_planet.classify(&node.bounding_box())
+    };
     if frustum_containment == Containment::Outside {
         return LODSelectResult::OutOfFrustum;
-    }
-
-    if depth == 0 {
-        // The last lod level is just always added to the selection list
-        add_to_visible_list(
-            frustum_planet,
-            &node.content,
-            depth,
-            split_distances,
-            result,
-            VisibleNodePart::Whole
-        );
-        return LODSelectResult::Selected;
     }
 
     // Check if the node is within it's LOD range or if it's children should be selected
@@ -517,7 +613,10 @@ fn lod_select<'a>(
 
         // If non of the nodes was selected because they either lack geometry or where out of range,
         // the entire node is simply selected
-        if children_selection_results.iter().all(LODSelectResult::is_not_selected) {
+        if children_selection_results
+            .iter()
+            .all(LODSelectResult::is_not_selected)
+        {
             // If the node has no children, we'll add it anyway
             add_to_visible_list(
                 frustum_planet,
@@ -527,22 +626,28 @@ fn lod_select<'a>(
                 result,
                 VisibleNodePart::Whole,
             );
-            return LODSelectResult::Selected
+            return LODSelectResult::Selected;
         }
 
         // If any of the nodes is not selected because it has no geometry or because it's out of
         // range, fill it in with geometry from the parent node
         for child in quad_tree::Child::values()
-            .filter(|c| children_selection_results[c.index()].is_not_selected()) {
-            add_to_visible_list(frustum_planet,
-                                &node.content,
-                                depth,
-                                split_distances,
-                                result,
-                                VisibleNodePart::Child(*child))
+            .filter(|c| children_selection_results[c.index()].is_not_selected())
+        {
+            add_to_visible_list(
+                frustum_planet,
+                &node.content,
+                depth,
+                split_distances,
+                result,
+                VisibleNodePart::Child(*child),
+            )
         }
 
-        if children_selection_results.iter().any(|s| *s == LODSelectResult::Selected) {
+        if children_selection_results
+            .iter()
+            .any(|s| *s == LODSelectResult::Selected)
+        {
             LODSelectResult::Selected
         } else {
             LODSelectResult::OutOfFrustum
@@ -564,17 +669,27 @@ fn lod_select<'a>(
 fn add_to_visible_list<'a>(
     frustum_planet: &Frustum,
     node: &'a Node,
-    _depth: usize,
-    _split_distances: &[f64],
+    depth: usize,
+    split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
-    part: VisibleNodePart
+    part: VisibleNodePart,
 ) {
-    let node_camera = node.origin - Point3::from_coordinates(frustum_planet.transform.translation.vector);
+    let node_camera = Translation3::from_vector(
+        node.origin - Point3::from_coordinates(frustum_planet.transform.translation.vector),
+    )
+    .to_homogeneous()
+        * node.transform;
+
+    let current_split_depth = if depth > 0 { split_distances[depth - 1] } else { 0.0 };
+    let previous_split_depth = split_distances[depth];
+    let split_depth = current_split_depth + (previous_split_depth - current_split_depth)*0.85;
 
     result.push_back(VisibleNode {
         node,
-        transform_camera: nalgebra::convert(Translation3::from_vector(node_camera).to_homogeneous()),
-        part
+        transform_camera: nalgebra::convert(node_camera),
+        part,
+        morph_range: (split_depth as f32, previous_split_depth as f32),
+        lod_level: depth as u16
     })
 }
 
