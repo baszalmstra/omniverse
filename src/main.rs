@@ -84,7 +84,6 @@ fn main() {
             &planet_transform,
             &planet::DrawParameters {
                 wire_frame: true,
-                ..Default::default()
             },
         );
 
@@ -122,13 +121,12 @@ fn main() {
                 }
                 _ => (),
             },
-            glutin::Event::DeviceEvent { event, .. } => match event {
-                glutin::DeviceEvent::MouseMotion { delta, .. } => {
+            glutin::Event::DeviceEvent { event, .. } => {
+                 if let glutin::DeviceEvent::MouseMotion { delta, .. } = event {
                     if left_mouse_pressed {
                         camera_controller.mouse_moved(&delta);
                     }
                 }
-                _ => (),
             },
             _ => (),
         })

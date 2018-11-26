@@ -22,12 +22,12 @@ impl Node {
 
         let id = backing.acquire();
 
-        let mut min = geometry.positions[0].clone();
-        let mut max = geometry.positions[0].clone();
+        let mut min = geometry.positions[0];
+        let mut max = geometry.positions[0];
 
         // Compute the reference frame of the node
-        let origin = geometry.positions[0].clone();
-        let tangent = (&geometry.positions[VERTICES_PER_PATCH - 1] - &geometry.positions[0])
+        let origin = geometry.positions[0];
+        let tangent = (geometry.positions[VERTICES_PER_PATCH - 1] - geometry.positions[0])
             .normalize();
         let geometric_binormal = (&geometry.positions[(VERTICES_PER_PATCH * VERTICES_PER_PATCH) - 1]
             - &geometry.positions[0]

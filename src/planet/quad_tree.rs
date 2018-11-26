@@ -12,7 +12,7 @@ pub enum Child {
 }
 
 impl Child {
-    pub fn index(&self) -> usize {
+    pub fn index(self) -> usize {
         match self {
             Child::TopLeft => 0,
             Child::TopRight => 1,

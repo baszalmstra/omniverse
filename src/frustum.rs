@@ -47,7 +47,7 @@ impl<T:Scalar> Classify<Point3<T>> for Frustum
             }
         }
 
-        return Containment::Inside;
+        Containment::Inside
     }
 }
 

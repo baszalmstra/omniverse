@@ -235,10 +235,10 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let mut split_distances: Vec<f64> = Vec::with_capacity(max_lod_level);
         split_distances.push(2.0);
         let mut last_value = 2.0;
-        for _i in 0..max_lod_level+1 {
+        for _i in 0..=max_lod_level {
             let split_amount = 2.0;
             split_distances.push(last_value * split_amount);
-            last_value = last_value * split_amount;
+            last_value *= split_amount;
         }
 
         let mut backing = NodeBacking::new(facade)?;

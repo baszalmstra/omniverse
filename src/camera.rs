@@ -39,7 +39,7 @@ impl Camera {
 
     pub fn frustum(&self, aspect_ratio: f32) -> Frustum {
         Frustum::new(
-            self.transform.clone(),
+            self.transform,
             nalgebra::Matrix4::new_perspective(aspect_ratio, self.fov, self.near, self.far),
         )
     }

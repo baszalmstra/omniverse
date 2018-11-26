@@ -23,7 +23,7 @@ lazy_static! {
 }
 
 impl Face {
-    pub fn orientation(&self) -> Rotation {
+    pub fn orientation(self) -> Rotation {
         match self {
             Face::Left => *ORIENTATION_LEFT,
             Face::Right => *ORIENTATION_RIGHT,
