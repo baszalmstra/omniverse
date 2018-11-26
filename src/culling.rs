@@ -1,11 +1,11 @@
 use nalgebra::{Point3, Scalar};
 use ncollide::bounding_volume::AABB3;
 
-#[derive(Copy,Clone,PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Containment {
     Outside,
     Inside,
-    Intersects
+    Intersects,
 }
 
 pub trait Classify<T> {
@@ -18,8 +18,9 @@ pub trait Classify<T> {
     }
 }
 
-pub fn corners<T:Scalar>(aabb:&AABB3<T>) -> [Point3<T>; 8]
-    where Point3<T>: ncollide::ncollide_math::Point
+pub fn corners<T: Scalar>(aabb: &AABB3<T>) -> [Point3<T>; 8]
+where
+    Point3<T>: ncollide::ncollide_math::Point,
 {
     // Compute the corners of the bounding box
     let min = aabb.mins();

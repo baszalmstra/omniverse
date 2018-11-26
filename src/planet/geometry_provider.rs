@@ -19,10 +19,26 @@ impl PatchLocation {
         let size = self.size * 0.5;
         let face = self.face;
         match index {
-            quad_tree::Child::TopLeft => PatchLocation { face, offset: Point2::new(self.offset.x, self.offset.y), size},
-            quad_tree::Child::TopRight => PatchLocation { face, offset: Point2::new(self.offset.x+size, self.offset.y), size},
-            quad_tree::Child::BottomLeft => PatchLocation { face, offset: Point2::new(self.offset.x, self.offset.y+size), size},
-            quad_tree::Child::BottomRight => PatchLocation { face, offset: Point2::new(self.offset.x+size, self.offset.y+size), size},
+            quad_tree::Child::TopLeft => PatchLocation {
+                face,
+                offset: Point2::new(self.offset.x, self.offset.y),
+                size,
+            },
+            quad_tree::Child::TopRight => PatchLocation {
+                face,
+                offset: Point2::new(self.offset.x + size, self.offset.y),
+                size,
+            },
+            quad_tree::Child::BottomLeft => PatchLocation {
+                face,
+                offset: Point2::new(self.offset.x, self.offset.y + size),
+                size,
+            },
+            quad_tree::Child::BottomRight => PatchLocation {
+                face,
+                offset: Point2::new(self.offset.x + size, self.offset.y + size),
+                size,
+            },
         }
     }
 
@@ -45,7 +61,11 @@ impl PatchLocation {
 
 impl Into<PatchLocation> for Face {
     fn into(self) -> PatchLocation {
-        PatchLocation { face: self, offset: Point2::new(0.0, 0.0), size: 1.0 }
+        PatchLocation {
+            face: self,
+            offset: Point2::new(0.0, 0.0),
+            size: 1.0,
+        }
     }
 }
 

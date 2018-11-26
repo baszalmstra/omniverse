@@ -1,14 +1,14 @@
-use std::boxed::Box;
-use std::option::Option;
-use std::iter::Iterator;
 use ncollide::bounding_volume::AABB;
+use std::boxed::Box;
+use std::iter::Iterator;
+use std::option::Option;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Child {
     TopLeft,
     TopRight,
     BottomLeft,
-    BottomRight
+    BottomRight,
 }
 
 impl Child {
@@ -22,7 +22,12 @@ impl Child {
     }
 
     pub fn values() -> impl Iterator<Item = &'static Child> {
-        static DIRECTIONS: [Child;  4] = [Child::TopLeft, Child::TopRight, Child::BottomLeft, Child::BottomRight];
+        static DIRECTIONS: [Child; 4] = [
+            Child::TopLeft,
+            Child::TopRight,
+            Child::BottomLeft,
+            Child::BottomRight,
+        ];
         DIRECTIONS.iter()
     }
 }
@@ -50,5 +55,7 @@ pub trait HasAABB<N> {
 }
 
 impl<N, T: HasAABB<N>> HasAABB<N> for QuadTree<T> {
-    fn bounding_box(&self) -> AABB<N> { self.content.bounding_box() }
+    fn bounding_box(&self) -> AABB<N> {
+        self.content.bounding_box()
+    }
 }

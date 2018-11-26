@@ -4,7 +4,8 @@
 extern crate glium;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate pretty_env_logger;
 
 extern crate alga;
@@ -17,17 +18,17 @@ extern crate test;
 use crate::camera::Camera;
 use crate::camera_controller::CameraController;
 use crate::transform::{Transform, Transformable};
-use nalgebra::Vector3;
 use glium::CapabilitiesSource;
+use nalgebra::Vector3;
 
 mod camera;
 mod camera_controller;
+mod culling;
 mod frustum;
+mod id_arena;
 mod planet;
 mod timeline;
 mod transform;
-mod id_arena;
-mod culling;
 
 fn main() {
     use glium::glutin;
@@ -37,8 +38,7 @@ fn main() {
 
     let mut events_loop = glutin::EventsLoop::new();
     let window = glutin::WindowBuilder::new().with_title("Omniverse");
-    let context = glutin::ContextBuilder::new()
-        .with_vsync(true);
+    let context = glutin::ContextBuilder::new().with_vsync(true);
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
     if !display.get_extensions().gl_arb_multi_draw_indirect {
@@ -82,9 +82,7 @@ fn main() {
             &mut frame,
             &frustum,
             &planet_transform,
-            &planet::DrawParameters {
-                wire_frame: true,
-            },
+            &planet::DrawParameters { wire_frame: true },
         );
 
         frame.finish().unwrap();
@@ -122,12 +120,12 @@ fn main() {
                 _ => (),
             },
             glutin::Event::DeviceEvent { event, .. } => {
-                 if let glutin::DeviceEvent::MouseMotion { delta, .. } = event {
+                if let glutin::DeviceEvent::MouseMotion { delta, .. } = event {
                     if left_mouse_pressed {
                         camera_controller.mouse_moved(&delta);
                     }
                 }
-            },
+            }
             _ => (),
         })
     }

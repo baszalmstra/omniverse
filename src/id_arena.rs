@@ -1,6 +1,6 @@
-use std::sync::Mutex;
-use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
 
 pub trait IdGenerator {
     type Id;
@@ -9,13 +9,13 @@ pub trait IdGenerator {
     fn acquire(&mut self) -> Option<Self::Id>;
 
     /// Releases the specified Id
-    fn release(&mut self, id:Self::Id);
+    fn release(&mut self, id: Self::Id);
 
     /// Returns the number of Ids allocated
     fn len(&self) -> usize;
 }
 
-pub trait IdArena:IdGenerator {
+pub trait IdArena: IdGenerator {
     /// Returns the maximum capacity of the arena
     fn capacity(&self) -> usize;
 }
@@ -27,7 +27,7 @@ pub struct SimpleIdArena {
 }
 
 impl SimpleIdArena {
-    pub fn with_capacity(capacity:usize) -> SimpleIdArena {
+    pub fn with_capacity(capacity: usize) -> SimpleIdArena {
         SimpleIdArena {
             counter: AtomicUsize::new(0),
             free: Mutex::new(Vec::new()),
@@ -55,7 +55,7 @@ impl IdGenerator for SimpleIdArena {
             })
     }
 
-    fn release(&mut self, id: Self::Id)  {
+    fn release(&mut self, id: Self::Id) {
         self.free.lock().unwrap().push(id);
     }
 

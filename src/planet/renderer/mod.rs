@@ -9,10 +9,10 @@ use crate::transform::Transform;
 use nalgebra::{Matrix4, Point3, Translation3, Vector3};
 use std::rc::Rc;
 
+mod horizon_culling;
 mod node;
 mod node_backing;
 mod vertex;
-mod horizon_culling;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
@@ -44,10 +44,16 @@ struct PerNodeInstanceVertex {
     pose_camera: [[f32; 4]; 4],
     atlas_index: u32,
     morph_range: (f32, f32),
-    lod_level: u16
+    lod_level: u16,
 }
 
-implement_vertex!(PerNodeInstanceVertex, pose_camera, atlas_index, morph_range, lod_level);
+implement_vertex!(
+    PerNodeInstanceVertex,
+    pose_camera,
+    atlas_index,
+    morph_range,
+    lod_level
+);
 
 pub struct Renderer<T: planet::GeometryProvider> {
     /// The OpenGL context
@@ -302,7 +308,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         // Construct the cone for horizon culling
         let horizon_cone = horizon_culling::Cone::new(
             Point3::from_coordinates(frustum_planet.transform.translation.vector),
-            self.description.radius);
+            self.description.radius,
+        );
 
         // Query all faces for visible nodes
         let visible_nodes: VecDeque<VisibleNode> = {
@@ -360,7 +367,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                         pose_camera: node.transform_camera.into(),
                         atlas_index: self.backing.atlas_index(node.node.node_id),
                         morph_range: node.morph_range,
-                        lod_level: node.lod_level
+                        lod_level: node.lod_level,
                     },
                 )
             }
@@ -572,7 +579,7 @@ fn lod_select<'a>(
     parent_completly_in_frustum: bool,
     result: &mut VecDeque<VisibleNode<'a>>,
 ) -> LODSelectResult {
-    use culling::{Containment, Classify};
+    use culling::{Classify, Containment};
 
     let frustum_containment = if parent_completly_in_frustum {
         Containment::Inside
@@ -591,7 +598,11 @@ fn lod_select<'a>(
 
     if depth < max_lod_level {
         // Check if the node is within the split distance of its parent lod level
-        if !in_range(&node.bounding_box(), &frustum_pos, split_distances[depth + 1]) {
+        if !in_range(
+            &node.bounding_box(),
+            &frustum_pos,
+            split_distances[depth + 1],
+        ) {
             return LODSelectResult::OutOfRange;
         }
     }
@@ -685,15 +696,15 @@ fn add_to_visible_list<'a>(
         * node.transform;
 
     let current_split_depth = split_distances[depth];
-    let previous_split_depth = split_distances[depth+1];
-    let split_depth = current_split_depth + (previous_split_depth - current_split_depth)*0.9;
+    let previous_split_depth = split_distances[depth + 1];
+    let split_depth = current_split_depth + (previous_split_depth - current_split_depth) * 0.9;
 
     result.push_back(VisibleNode {
         node,
         transform_camera: nalgebra::convert(node_camera),
         part,
         morph_range: (split_depth as f32, previous_split_depth as f32),
-        lod_level: depth as u16
+        lod_level: depth as u16,
     })
 }
 

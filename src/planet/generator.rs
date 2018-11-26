@@ -85,8 +85,8 @@ fn morph(pos: Vector3<f64>) -> Vector3<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::Bencher;
     use nalgebra::Point2;
+    use test::Bencher;
 
     #[bench]
     fn provide(b: &mut Bencher) {

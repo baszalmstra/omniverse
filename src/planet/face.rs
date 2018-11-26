@@ -35,7 +35,14 @@ impl Face {
     }
 
     pub fn values() -> impl Iterator<Item = &'static Face> {
-        static VALUES: [Face;  6] = [Face::Left, Face::Right, Face::Top, Face::Bottom, Face::Front, Face::Back];
+        static VALUES: [Face; 6] = [
+            Face::Left,
+            Face::Right,
+            Face::Top,
+            Face::Bottom,
+            Face::Front,
+            Face::Back,
+        ];
         VALUES.iter()
     }
 }

@@ -2,24 +2,24 @@ use super::Vertex;
 use crate::id_arena::{IdGenerator, SimpleIdArena};
 use glium::backend::Facade;
 use glium::buffer::BufferMutSlice;
-use glium::texture::{PixelValue, Texture2dArray};
 use glium::texture::pixel_buffer::PixelBuffer;
+use glium::texture::MipmapsOption;
+use glium::texture::UncompressedFloatFormat;
+use glium::texture::{PixelValue, Texture2dArray};
 use glium::vertex::VertexBufferSlice;
 use glium::VertexBuffer;
 use std::boxed::Box;
-use glium::texture::UncompressedFloatFormat;
-use glium::texture::MipmapsOption;
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeId(usize);
 
-pub struct TextureAtlas<P:PixelValue> {
+pub struct TextureAtlas<P: PixelValue> {
     pub texture: Texture2dArray,
     upload_buffer: PixelBuffer<P>,
-    pixels_per_patch: u32
+    pixels_per_patch: u32,
 }
 
-impl<T:PixelValue> TextureAtlas<T> {
+impl<T: PixelValue> TextureAtlas<T> {
     fn new<F: ?Sized + Facade>(
         facade: &F,
         format: UncompressedFloatFormat,
@@ -36,17 +36,25 @@ impl<T:PixelValue> TextureAtlas<T> {
                 patch_count as u32,
             )?,
             pixels_per_patch: pixels_per_patch as u32,
-            upload_buffer: PixelBuffer::new_empty(facade, pixels_per_patch * pixels_per_patch)
+            upload_buffer: PixelBuffer::new_empty(facade, pixels_per_patch * pixels_per_patch),
         })
     }
 
-    pub fn write(&mut self, id:NodeId, mip_level: u32, data: &[T]) {
-        assert_eq!(((self.pixels_per_patch >> mip_level) * (self.pixels_per_patch >> mip_level)) as usize, data.len());
+    pub fn write(&mut self, id: NodeId, mip_level: u32, data: &[T]) {
+        assert_eq!(
+            ((self.pixels_per_patch >> mip_level) * (self.pixels_per_patch >> mip_level)) as usize,
+            data.len()
+        );
         self.upload_buffer.write(data);
-        self.texture.mipmap(mip_level).unwrap().raw_upload_from_pixel_buffer(self.upload_buffer.as_slice(),
-                                                                             0..self.pixels_per_patch,
-                                                                             0..self.pixels_per_patch,
-                                                                             id.0 as u32 .. id.0 as u32 + 1);
+        self.texture
+            .mipmap(mip_level)
+            .unwrap()
+            .raw_upload_from_pixel_buffer(
+                self.upload_buffer.as_slice(),
+                0..self.pixels_per_patch,
+                0..self.pixels_per_patch,
+                id.0 as u32..id.0 as u32 + 1,
+            );
         self.upload_buffer.invalidate();
     }
 }
@@ -115,8 +123,18 @@ impl NodeBacking {
                 MAX_PATCH_COUNT,
                 VERTICES_PER_PATCH * VERTICES_PER_PATCH,
             )?,
-            heights: TextureAtlas::new(facade, UncompressedFloatFormat::F32, MAX_PATCH_COUNT, VERTICES_PER_PATCH)?,
-            normals: TextureAtlas::new(facade, UncompressedFloatFormat::F32F32F32, MAX_PATCH_COUNT, NORMALS_PER_PATCH)?,
+            heights: TextureAtlas::new(
+                facade,
+                UncompressedFloatFormat::F32,
+                MAX_PATCH_COUNT,
+                VERTICES_PER_PATCH,
+            )?,
+            normals: TextureAtlas::new(
+                facade,
+                UncompressedFloatFormat::F32F32F32,
+                MAX_PATCH_COUNT,
+                NORMALS_PER_PATCH,
+            )?,
         })
     }
 
@@ -131,7 +149,7 @@ impl NodeBacking {
         self.id_generator.release(id.0);
     }
 
-    pub fn atlas_index(&self, id:NodeId) -> u32 {
+    pub fn atlas_index(&self, id: NodeId) -> u32 {
         id.0 as u32
     }
 }
