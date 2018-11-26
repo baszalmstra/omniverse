@@ -3,9 +3,9 @@ use core::mem;
 use crate::planet;
 use nalgebra::{Matrix4, Point3, UnitQuaternion};
 use ncollide::bounding_volume::{AABB, AABB3};
-use planet::quad_tree::HasAABB;
-use planet::renderer::node_backing::NodeBacking;
-use planet::renderer::node_backing::NodeId;
+use crate::planet::quad_tree::HasAABB;
+use crate::planet::renderer::node_backing::NodeBacking;
+use crate::planet::renderer::node_backing::NodeId;
 
 /// Contains geometry information for a single node of a quad tree for a face.
 pub struct Node {
@@ -18,7 +18,7 @@ pub struct Node {
 
 impl Node {
     pub fn new(backing: &mut NodeBacking, geometry: &planet::PatchGeometry) -> Node {
-        use planet::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
+        use crate::planet::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 
         let id = backing.acquire();
 

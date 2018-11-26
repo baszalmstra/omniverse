@@ -24,8 +24,8 @@ use glium::{
     index::{IndicesSource, PrimitiveType},
     Frame, IndexBuffer, Program, Surface, VertexBuffer,
 };
-use planet::quad_tree::HasAABB;
-use planet::renderer::node_backing::NodeBacking;
+use crate::planet::quad_tree::HasAABB;
+use crate::planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
@@ -579,7 +579,7 @@ fn lod_select<'a>(
     parent_completly_in_frustum: bool,
     result: &mut VecDeque<VisibleNode<'a>>,
 ) -> LODSelectResult {
-    use culling::{Classify, Containment};
+    use crate::culling::{Classify, Containment};
 
     let frustum_containment = if parent_completly_in_frustum {
         Containment::Inside

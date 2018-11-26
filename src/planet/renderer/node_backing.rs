@@ -115,7 +115,7 @@ pub struct NodeBacking {
 
 impl NodeBacking {
     pub fn new<F: ?Sized + Facade>(facade: &F) -> Result<NodeBacking, Box<std::error::Error>> {
-        use planet::constants::{MAX_PATCH_COUNT, NORMALS_PER_PATCH, VERTICES_PER_PATCH};
+        use crate::planet::constants::{MAX_PATCH_COUNT, NORMALS_PER_PATCH, VERTICES_PER_PATCH};
         Ok(NodeBacking {
             id_generator: SimpleIdArena::with_capacity(MAX_PATCH_COUNT),
             vertices: GeometryBuffer::new(

@@ -1,6 +1,6 @@
 use crate::planet::Face;
 use nalgebra::{Point2, Point3, Vector3};
-use planet::quad_tree;
+use crate::planet::quad_tree;
 
 /// Location of a patch in the oriented unit quad.
 #[derive(Debug, Copy, Clone)]

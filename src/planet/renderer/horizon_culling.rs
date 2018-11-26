@@ -1,6 +1,6 @@
 use alga::general::SubsetOf;
-use culling;
-use culling::{Classify, Containment};
+use crate::culling;
+use crate::culling::{Classify, Containment};
 use nalgebra::{Point3, Real, Scalar, Vector3};
 use ncollide::bounding_volume::AABB3;
 
