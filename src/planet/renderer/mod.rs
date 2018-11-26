@@ -12,6 +12,7 @@ use std::rc::Rc;
 mod node;
 mod node_backing;
 mod vertex;
+mod horizon_culling;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
@@ -234,7 +235,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let mut split_distances: Vec<f64> = Vec::with_capacity(max_lod_level);
         split_distances.push(2.0);
         let mut last_value = 2.0;
-        for i in 0..max_lod_level {
+        for _i in 0..max_lod_level+1 {
             let split_amount = 2.0;
             split_distances.push(last_value * split_amount);
             last_value = last_value * split_amount;
@@ -298,12 +299,18 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             frustum.projection,
         );
 
+        // Construct the cone for horizon culling
+        let horizon_cone = horizon_culling::Cone::new(
+            Point3::from_coordinates(frustum_planet.transform.translation.vector),
+            self.description.radius);
+
         // Query all faces for visible nodes
         let visible_nodes: VecDeque<VisibleNode> = {
             let mut result = VecDeque::new();
             for face in self.faces.iter() {
                 lod_select(
                     &frustum_planet,
+                    &horizon_cone,
                     &face.root,
                     face.face.into(),
                     self.max_lod_level,
@@ -556,6 +563,7 @@ impl LODSelectResult {
 
 fn lod_select<'a>(
     frustum_planet: &Frustum,
+    cone: &horizon_culling::Cone<f64>,
     node: &'a QuadTree<Node>,
     location: PatchLocation,
     depth: usize,
@@ -564,7 +572,7 @@ fn lod_select<'a>(
     parent_completly_in_frustum: bool,
     result: &mut VecDeque<VisibleNode<'a>>,
 ) -> LODSelectResult {
-    use frustum::{Classify, Containment};
+    use culling::{Containment, Classify};
 
     let frustum_containment = if parent_completly_in_frustum {
         Containment::Inside
@@ -575,40 +583,36 @@ fn lod_select<'a>(
         return LODSelectResult::OutOfFrustum;
     }
 
-    // Check if the node is within it's LOD range or if it's children should be selected
-    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
-    if !in_range(&node.bounding_box(), &frustum_pos, split_distances[depth]) {
-        // No matter what, the highest lod level is always selected
-        if depth == max_lod_level {
-            add_to_visible_list(
-                frustum_planet,
-                &node.content,
-                depth,
-                split_distances,
-                result,
-                VisibleNodePart::Whole,
-            );
-            return LODSelectResult::Selected;
-        }
-
-        return LODSelectResult::OutOfRange;
+    if cone.contains(&node.bounding_box()) {
+        return LODSelectResult::OutOfFrustum;
     }
 
-    if let Some(ref children) = node.children {
-        let node_completely_in_frustum = frustum_containment == Containment::Inside;
-        let mut children_selection_results = [LODSelectResult::Undefined; 4];
+    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
 
-        for child in quad_tree::Child::values() {
-            children_selection_results[child.index()] = lod_select(
-                frustum_planet,
-                &(*children)[child.index()],
-                location.split(*child),
-                depth - 1,
-                max_lod_level,
-                split_distances,
-                node_completely_in_frustum,
-                result,
-            );
+    if depth < max_lod_level {
+        // Check if the node is within the split distance of its parent lod level
+        if !in_range(&node.bounding_box(), &frustum_pos, split_distances[depth + 1]) {
+            return LODSelectResult::OutOfRange;
+        }
+    }
+
+    let mut children_selection_results = [LODSelectResult::Undefined; 4];
+    if in_range(&node.bounding_box(), &frustum_pos, split_distances[depth]) {
+        if let Some(ref children) = node.children {
+            let node_completely_in_frustum = frustum_containment == Containment::Inside;
+            for child in quad_tree::Child::values() {
+                children_selection_results[child.index()] = lod_select(
+                    frustum_planet,
+                    cone,
+                    &(*children)[child.index()],
+                    location.split(*child),
+                    depth - 1,
+                    max_lod_level,
+                    split_distances,
+                    node_completely_in_frustum,
+                    result,
+                );
+            }
         }
 
         // If non of the nodes was selected because they either lack geometry or where out of range,
@@ -680,9 +684,9 @@ fn add_to_visible_list<'a>(
     .to_homogeneous()
         * node.transform;
 
-    let current_split_depth = if depth > 0 { split_distances[depth - 1] } else { 0.0 };
-    let previous_split_depth = split_distances[depth];
-    let split_depth = current_split_depth + (previous_split_depth - current_split_depth)*0.85;
+    let current_split_depth = split_distances[depth];
+    let previous_split_depth = split_distances[depth+1];
+    let split_depth = current_split_depth + (previous_split_depth - current_split_depth)*0.9;
 
     result.push_back(VisibleNode {
         node,

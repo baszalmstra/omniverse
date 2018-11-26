@@ -1,14 +1,10 @@
 use crate::transform::Transform;
 use nalgebra::{Scalar, Matrix4, Vector4, Vector3, Point3, convert};
-use ncollide::bounding_volume::{AABB3};
+use ncollide::bounding_volume::AABB3;
+use culling::Containment;
+use culling::Classify;
 use alga::general::SubsetOf;
-
-#[derive(Copy,Clone,PartialEq)]
-pub enum Containment {
-    Outside,
-    Inside,
-    Intersects
-}
+use culling;
 
 pub struct Frustum {
     pub transform: Transform,
@@ -39,29 +35,6 @@ impl Frustum {
     }
 }
 
-#[derive(PartialEq)]
-enum HalfSpace {
-    Negative,
-    On,
-    Positive
-}
-
-fn half_space<T:Scalar+SubsetOf<f32>>(plane: &Vector4<f32>, p: &Vector3<T>) -> HalfSpace {
-    let p = convert::<Vector3<T>, Vector3<f32>>(*p);
-    let det = plane.x*p.x + plane.y*p.y + plane.z*p.z + plane.w;
-    if det < 0.0 {
-        HalfSpace::Negative
-    } else if det > 0.0 {
-        HalfSpace::Positive
-    } else {
-        HalfSpace::On
-    }
-}
-
-pub trait Classify<T> {
-    fn classify(&self, shape: &T) -> Containment;
-}
-
 impl<T:Scalar> Classify<Point3<T>> for Frustum
     where T:SubsetOf<f32>
 {
@@ -84,19 +57,7 @@ impl<T:Scalar> Classify<AABB3<T>> for Frustum
         Point3<T>: ncollide::ncollide_math::Point
 {
     fn classify(&self, shape: &AABB3<T>) -> Containment {
-        // Compute the corners of the bounding box
-        let min = shape.mins();
-        let max = shape.maxs();
-        let corners = [
-            Vector3::new(min.x, min.y, min.z),
-            Vector3::new(max.x, min.y, min.z),
-            Vector3::new(min.x, max.y, min.z),
-            Vector3::new(max.x, max.y, min.z),
-            Vector3::new(min.x, min.y, max.z),
-            Vector3::new(max.x, min.y, max.z),
-            Vector3::new(min.x, max.y, max.z),
-            Vector3::new(max.x, max.y, max.z),
-        ];
+       let corners = culling::corners(shape);
 
         // Test all corners against all planes. If all points are behind 1 specific plane, the AABB
         // is outside the frustum. If all points are inside the frustum the AABB is inside.
@@ -106,7 +67,7 @@ impl<T:Scalar> Classify<AABB3<T>> for Frustum
             let mut point_inside = 1;
 
             for corner in corners.iter() {
-                if half_space(plane, corner) == HalfSpace::Negative {
+                if half_space(plane, &corner.coords) == HalfSpace::Negative {
                     point_inside = 0;
                     total_positive -= 1;
                 }
@@ -124,5 +85,24 @@ impl<T:Scalar> Classify<AABB3<T>> for Frustum
         } else {
             Containment::Intersects
         }
+    }
+}
+
+#[derive(PartialEq)]
+enum HalfSpace {
+    Negative,
+    On,
+    Positive
+}
+
+fn half_space<T:Scalar+SubsetOf<f32>>(plane: &Vector4<f32>, p: &Vector3<T>) -> HalfSpace {
+    let p = convert::<Vector3<T>, Vector3<f32>>(*p);
+    let det = plane.x*p.x + plane.y*p.y + plane.z*p.z + plane.w;
+    if det < 0.0 {
+        HalfSpace::Negative
+    } else if det > 0.0 {
+        HalfSpace::Positive
+    } else {
+        HalfSpace::On
     }
 }

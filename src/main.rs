@@ -27,6 +27,7 @@ mod planet;
 mod timeline;
 mod transform;
 mod id_arena;
+mod culling;
 
 fn main() {
     use glium::glutin;

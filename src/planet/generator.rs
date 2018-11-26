@@ -17,7 +17,7 @@ impl Generator {
         let oriented_position = patch.face.orientation() * Vector3::new(x, y, 1.0);
         let dir = morph(oriented_position);
 
-        let height = 20.0 * f64::sin(30.0 * (dir.x + dir.y + dir.z));
+        let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
 
         Point3::from_coordinates(dir * (self.description.radius + height))
     }
