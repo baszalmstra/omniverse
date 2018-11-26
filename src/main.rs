@@ -1,34 +1,17 @@
-#![feature(test)]
-
-#[macro_use]
+#[macro_use] extern crate log;
 extern crate glium;
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate log;
 extern crate pretty_env_logger;
 
-extern crate alga;
+extern crate omniverse;
 extern crate nalgebra;
-extern crate ncollide;
 
-extern crate core;
-extern crate test;
-
-use crate::camera::Camera;
-use crate::camera_controller::CameraController;
-use crate::transform::{Transform, Transformable};
+use omniverse::timeline;
+use omniverse::planet;
+use omniverse::camera::Camera;
+use omniverse::camera_controller::CameraController;
+use omniverse::transform::{Transform, Transformable};
 use glium::CapabilitiesSource;
 use nalgebra::Vector3;
-
-mod camera;
-mod camera_controller;
-mod culling;
-mod frustum;
-mod id_arena;
-mod planet;
-mod timeline;
-mod transform;
 
 fn main() {
     use glium::glutin;
@@ -47,7 +30,7 @@ fn main() {
     }
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, 1500.0));
+    camera.translate_by(&Vector3::new(0.0, 0.0, 2000.0));
 
     let planet_desc = planet::Description { radius: 1000.0 };
     let planet_transform = Transform::identity();

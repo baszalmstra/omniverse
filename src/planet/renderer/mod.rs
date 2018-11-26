@@ -22,13 +22,15 @@ use glium::{
     backend::{Context, Facade},
     index::DrawCommandsIndicesBuffer,
     index::{IndicesSource, PrimitiveType},
-    Frame, IndexBuffer, Program, Surface, VertexBuffer,
+    IndexBuffer, Program, Surface, VertexBuffer,
 };
 use crate::planet::quad_tree::HasAABB;
 use crate::planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
+#[derive(Deserialize)]
+#[serde(default)]
 pub struct DrawParameters {
     pub wire_frame: bool,
 }
@@ -283,9 +285,9 @@ impl<T: planet::GeometryProvider> Renderer<T> {
     /// * `frame` - The frame to render to
     /// * `frustum` - The frustum that represents the view to render from in world space.
     /// * `planet_world_transform` - The transformation of the planet relative to the world.
-    pub fn draw(
+    pub fn draw<S:Surface>(
         &self,
-        frame: &mut Frame,
+        frame: &mut S,
         frustum: &Frustum,
         planet_world_transform: &Transform,
         draw_parameters: &DrawParameters,

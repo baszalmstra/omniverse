@@ -1,0 +1,40 @@
+{
+  "samples": 8,
+  "size": [1280,800],
+  "screenshots": [
+    {
+      "name": "01_screenshot",
+      "position": [0,100,1100],
+      "rotation": [40,20,0],
+      "draw_parameters": {
+        "wire_frame": false
+      }
+    },
+    {
+      "name": "01_screenshot_wireframe",
+      "position": [0,100,1100],
+      "rotation": [40,20,0],
+      "draw_parameters": {
+        "wire_frame": true
+      },
+      "samples": 2
+    },
+    {
+      "name": "02_screenshot",
+      "position": [0,0,2700],
+      "rotation": [0,0,0],
+      "draw_parameters": {
+        "wire_frame": false
+      }
+    },
+    {
+      "name": "02_screenshot_wireframe",
+      "position": [0,0,2700],
+      "rotation": [0,0,0],
+      "draw_parameters": {
+        "wire_frame": true
+      },
+      "samples": 2
+    }
+  ]
+}
