@@ -1,17 +1,18 @@
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate glium;
 extern crate pretty_env_logger;
 
-extern crate omniverse;
 extern crate nalgebra;
+extern crate omniverse;
 
-use omniverse::timeline;
-use omniverse::planet;
-use omniverse::camera::Camera;
-use omniverse::camera_controller::CameraController;
-use omniverse::transform::{Transform, Transformable};
 use glium::CapabilitiesSource;
 use nalgebra::Vector3;
+use omniverse::camera::Camera;
+use omniverse::camera_controller::CameraController;
+use omniverse::planet;
+use omniverse::timeline;
+use omniverse::transform::{Transform, Transformable};
 
 fn main() {
     use glium::glutin;

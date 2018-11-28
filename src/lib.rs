@@ -1,5 +1,7 @@
 #![feature(test)]
 #![feature(custom_attribute)]
+#![feature(extern_crate_item_prelude)]
+
 
 #[macro_use] extern crate glium;
 #[macro_use] extern crate lazy_static;
