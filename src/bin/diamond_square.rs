@@ -1,5 +1,6 @@
 use image::ImageBuffer;
 use omniverse::planet::Face;
+use rand::Rng;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 struct CubeCoord {
@@ -65,7 +66,7 @@ impl CubeCoord {
                         }
                     } else {
                         CubeCoord {
-                            x: size - self.y,
+                            x: size - self.y - 1,
                             y: x_new - size,
                             face: Face::Right
                         }
@@ -74,7 +75,7 @@ impl CubeCoord {
                 Face::Bottom => {
                     if x_new < 0 {
                         CubeCoord {
-                            x: size - self.y,
+                            x: size - self.y - 1,
                             y: size + x_new,
                             face: Face::Left
                         }
@@ -121,7 +122,7 @@ impl CubeCoord {
                     if y_new < 0 {
                         CubeCoord {
                             x: size + y_new,
-                            y: size - self.x,
+                            y: size - self.x - 1,
                             face: Face::Top,
                         }
                     } else {
@@ -135,13 +136,13 @@ impl CubeCoord {
                 Face::Back => {
                     if y_new < 0 {
                         CubeCoord {
-                            x: size - self.x,
+                            x: size - self.x - 1,
                             y: -y_new,
                             face: Face::Top,
                         }
                     } else {
                         CubeCoord {
-                            x: size - self.x,
+                            x: size - self.x - 1,
                             y: 2 * size - y_new - 1,
                             face: Face::Bottom,
                         }
@@ -157,7 +158,7 @@ impl CubeCoord {
                     } else {
                         CubeCoord {
                             x: y_new - size,
-                            y: size - self.x,
+                            y: size - self.x - 1,
                             face: Face::Bottom,
                         }
                     }
@@ -165,7 +166,7 @@ impl CubeCoord {
                 Face::Top => {
                     if y_new < 0 {
                         CubeCoord {
-                            x: size - self.x,
+                            x: size - self.x - 1,
                             y: -y_new,
                             face: Face::Back,
                         }
@@ -186,14 +187,111 @@ impl CubeCoord {
                         }
                     } else {
                         let result = CubeCoord {
-                            x: size - self.x,
+                            x: size - self.x - 1,
                             y: 2 * size - y_new - 1,
                             face: Face::Back,
                         };
-                        println!("{:?}", result);
                         result
                     }
                 },
+            }
+        }
+    }
+}
+
+fn diamond_step<D>(vec: &mut [Vec<f64>; 6], step: i32, size: i32, rnd: &D)
+    where D: rand::distributions::Distribution<f64>
+{
+    for i in 0..4 {
+
+        for y in (step..size).step_by(2 * step as usize) {
+            for x in (step..size).step_by(2 * step as usize) {
+                let p = CubeCoord::new(x, y, primitive_to_face(i));
+
+                let p1 = p.add_dx(-step, size).add_dy(-step, size);
+                let p2 = p.add_dx(step, size).add_dy(-step, size);
+                let p3 = p.add_dx(-step, size).add_dy(step, size);
+                let p4 = p.add_dx(step, size).add_dy(step, size);
+
+                println!("DIAMOND");
+                println!("p  = {:?}", p);
+                println!("p1 = {:?}", p1);
+                println!("p2 = {:?}", p2);
+                println!("p3 = {:?}", p3);
+                println!("p4 = {:?}", p4);
+
+                let h = rand::thread_rng().sample(rnd) * step as f64;
+
+                vec[i as usize][(p.y * size + p.x) as usize] = (
+                    vec[i as usize][(p1.y * size + p1.x) as usize] +
+                        vec[i as usize][(p2.y * size + p2.x) as usize] +
+                        vec[i as usize][(p3.y * size + p3.x) as usize] +
+                        vec[i as usize][(p4.y * size + p4.x) as usize]) / 4.0 + h;
+            }
+        }
+    }
+
+    for i in 4..6 {
+
+        for y in (step..size).step_by(2 * step as usize) {
+            for x in (step..size).step_by(2 * step as usize) {
+                let p = CubeCoord::new(x, y, primitive_to_face(i));
+
+                let p1 = p.add_dy(-step, size).add_dx(-step, size);
+                let p2 = p.add_dy(step, size).add_dx(-step, size);
+                let p3 = p.add_dy(-step, size).add_dx(step, size);
+                let p4 = p.add_dy(step, size).add_dx(step, size);
+
+                println!("DIAMOND");
+                println!("p  = {:?}", p);
+                println!("p1 = {:?}", p1);
+                println!("p2 = {:?}", p2);
+                println!("p3 = {:?}", p3);
+                println!("p4 = {:?}", p4);
+
+                let h = rand::thread_rng().sample(rnd) * step as f64;
+
+                vec[i as usize][(p.y * size + p.x) as usize] = (
+                    vec[i as usize][(p1.y * size + p1.x) as usize] +
+                        vec[i as usize][(p2.y * size + p2.x) as usize] +
+                        vec[i as usize][(p3.y * size + p3.x) as usize] +
+                        vec[i as usize][(p4.y * size + p4.x) as usize]) / 4.0 + h;
+            }
+        }
+    }
+}
+
+fn square_step<D>(vec: &mut [Vec<f64>; 6], step: i32, size: i32, rnd: &D)
+    where D: rand::distributions::Distribution<f64>
+{
+    for i in 0..6 {
+
+        for y in (0..size).step_by(step as usize) {
+            for x in (0..size).step_by(step as usize) {
+                if (x + y) / step % 2 == 0 {
+                    continue;
+                }
+
+                let p = CubeCoord::new(x, y, primitive_to_face(i));
+                let p1 = p.add_dx(-step, size);
+                let p2 = p.add_dx(step, size);
+                let p3 = p.add_dy(-step, size);
+                let p4 = p.add_dy(step, size);
+
+                println!("SQUARE");
+                println!("p  = {:?}", p);
+                println!("p1 = {:?}", p1);
+                println!("p2 = {:?}", p2);
+                println!("p3 = {:?}", p3);
+                println!("p4 = {:?}", p4);
+
+                let h = rand::thread_rng().sample(rnd) * step as f64;
+
+                vec[i as usize][(p.y * size + p.x) as usize] = (
+                    vec[i as usize][(p1.y * size + p1.x) as usize] +
+                        vec[i as usize][(p2.y * size + p2.x) as usize] +
+                        vec[i as usize][(p3.y * size + p3.x) as usize] +
+                        vec[i as usize][(p4.y * size + p4.x) as usize]) / 4.0 + h;
             }
         }
     }
@@ -212,55 +310,28 @@ fn main() {
         vec![0.0; size * size],
         vec![0.0; size * size]];
 
-    let mut p = CubeCoord::new(100, 200,  Face::Top);
+    let rng = rand::distributions::Normal::new(0.0, 1.0);
 
-    for i in 0..size * 3{
-        vec[face_to_primitive(p.face) as usize][(p.y * size as i32 + p.x) as usize] = 1.0;
-        p = p.add_dy(1, size as i32);
-}
+    let mut step = size / 2;
+    loop {
+        diamond_step(&mut vec, step as i32, size as i32, &rng);
+        square_step(&mut vec, step as i32, size as i32, &rng);
+        if step == 1 {
+            break;
+        }
 
+        break;
+//        step = step / 2;
+    }
 
     for i in 0..6 {
         let image = ImageBuffer::from_fn(size as u32, size as u32, |x,y| {
             let idx = (y  * size as u32  +x) as usize;
-            if vec[i][idx] > 0.0 {
-                image::Rgb([255, 0, 0])
-            } else {
-                image::Rgb([0, 0, 0])
-            }
+            let height = vec[i][idx] / 1000.0;
+            let color = (height*128.0 + 128.0) as u8;
+            image::Rgb([color, color,color])
         });
 
         image.save(format!("diamong_square_{:?}.png", primitive_to_face( i as i32)) ).unwrap();
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_horizontal() {
-        let size = 5;
-        for face in Face::values() {
-            let start = CubeCoord::new(1, 3, *face);
-            let positive = start.add_dx(4, size);
-            let negative = start.add_dx(-4, size);
-
-            assert_eq!(start, positive.add_dx(-4, size));
-            assert_eq!(start, negative.add_dx(4, size));
-        }
-    }
-
-    #[test]
-    fn test_vertical() {
-        let size = 5;
-        for face in Face::values() {
-            let start = CubeCoord::new(1, 3, *face);
-            let positive = start.add_dy(4, size);
-            let negative = start.add_dy(-4, size);
-
-            assert_eq!(start, positive.add_dy(-4, size));
-            assert_eq!(start, negative.add_dy(4, size));
-        }
     }
 }
