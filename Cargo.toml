@@ -16,6 +16,9 @@ image = "0.18"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
+imgui = "0.0.21"
+imgui-glium-renderer = "0.0.21"
+imgui-glutin-support = "0.0.21"
 
 [lib]
 name = "omniverse"
