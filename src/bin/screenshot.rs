@@ -34,6 +34,27 @@ struct ScreenshotInfo {
     size: Option<(u32, u32)>,
 }
 
+#[cfg(any(target_os = "linux"))]
+fn create(event_loop: &glium::glutin::EventsLoop) -> impl glium::backend::Facade {
+    let window = glium::glutin::WindowBuilder::new().with_visibility(false);
+    let context = glium::glutin::ContextBuilder::new();
+    let display = glium::Display::new(window, context, &event_loop).unwrap();
+
+    display
+}
+
+
+#[cfg(any(target_os = "windows"))]
+fn create(event_loop: &glium::glutin::EventsLoop) -> impl glium::backend::Facade {
+    let context = glium::glutin::HeadlessRendererBuilder::new(1024, 1024)
+        .build()
+        .unwrap();
+
+    let display = glium::HeadlessRenderer::new(context).unwrap();
+
+    display
+}
+
 fn main() {
     use glium::glutin;
     use glium::Surface;
@@ -51,15 +72,8 @@ fn main() {
     let screenshot_infos: Screenshots =
         serde_json::from_str(&screenshots_content).expect("Could not parse screenshots.json");
 
-    /*let context = glutin::HeadlessRendererBuilder::new(1024, 1024)
-        .build()
-        .unwrap();
-    let display = glium::HeadlessRenderer::new(context).unwrap();*/
-
     let events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_visibility(false);
-    let context = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window, context, &events_loop).unwrap();
+    let display = create(&events_loop);
 
     // Initialize a planet
     let planet_desc = planet::Description { radius: 1000.0 };
