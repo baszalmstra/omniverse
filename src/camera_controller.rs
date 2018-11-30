@@ -3,9 +3,11 @@ use crate::transform::Transformable;
 use glium::glutin::KeyboardInput;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
+use glium::glutin;
 
 pub struct CameraController {
     movement_vector: Vector3<f64>,
+    movement_speed: f32,
     //up_vector: nalgebra::Unit<Vector3<f64>>,
     delta_mouse_position: Vector2<f64>,
 }
@@ -16,6 +18,7 @@ impl CameraController {
             movement_vector: Vector3::new(0.0, 0.0, 0.0),
             //up_vector: Vector3::y_axis(),
             delta_mouse_position: Vector2::new(0.0, 0.0),
+            movement_speed: 50.0
         }
     }
 
@@ -78,8 +81,21 @@ impl CameraController {
         self.delta_mouse_position += Vector2::new(delta_position.0, delta_position.1);
     }
 
+    pub fn mouse_wheel_event(&mut self, delta: glutin::MouseScrollDelta) {
+        match delta {
+            glutin::MouseScrollDelta::LineDelta(_,y) => {
+                self.movement_speed = (self.movement_speed+y*40.0).max(1.0);
+            }
+            _=> {}
+        }
+    }
+
     pub fn tick<T: Transformable>(&mut self, time_since_last_frame: f32, transform: &mut T) {
-        let translation = self.movement_vector * 50.0 * f64::from(time_since_last_frame);
+        let translation = if self.movement_vector.dot(&self.movement_vector) > 0.0 {
+            self.movement_vector * self.movement_speed as f64 * f64::from(time_since_last_frame)
+        } else {
+            self.movement_vector
+        };
 
         transform.rotate_by(&Rotation::from_axis_angle(
             &Vector3::y_axis(),

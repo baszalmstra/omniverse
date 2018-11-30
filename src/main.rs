@@ -66,7 +66,7 @@ fn main() {
             &mut frame,
             &frustum,
             &planet_transform,
-            &planet::DrawParameters { wire_frame: true },
+            &planet::DrawParameters { wire_frame: false },
         );
 
         frame.finish().unwrap();
@@ -86,6 +86,9 @@ fn main() {
                     mouse_down_mouse_position = last_logical_mouse_position;
                     display.gl_window().hide_cursor(true);
                 }
+                glutin::WindowEvent::MouseWheel {delta, ..} => {
+                    camera_controller.mouse_wheel_event(delta);
+                },
                 glutin::WindowEvent::MouseInput {
                     state: glutin::ElementState::Released,
                     button: glutin::MouseButton::Left,
