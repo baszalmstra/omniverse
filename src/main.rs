@@ -3,6 +3,7 @@ extern crate log;
 extern crate glium;
 extern crate pretty_env_logger;
 
+
 extern crate nalgebra;
 extern crate omniverse;
 
@@ -12,7 +13,9 @@ use omniverse::camera::Camera;
 use omniverse::camera_controller::CameraController;
 use omniverse::planet;
 use omniverse::timeline;
+use omniverse::ui;
 use omniverse::transform::{Transform, Transformable};
+
 
 fn main() {
     use glium::glutin;
@@ -21,14 +24,19 @@ fn main() {
     pretty_env_logger::init();
 
     let mut events_loop = glutin::EventsLoop::new();
-    let window = glutin::WindowBuilder::new().with_title("Omniverse");
+    let window_builder = glutin::WindowBuilder::new().with_title("Omniverse");
     let context = glutin::ContextBuilder::new().with_vsync(true);
-    let display = glium::Display::new(window, context, &events_loop).unwrap();
+    let display = glium::Display::new(window_builder, context, &events_loop).unwrap();
+    let window = display.gl_window();
+//    let hidpi_factor = display.gl_window().get_hidpi_factor();
 
     if !display.get_extensions().gl_arb_multi_draw_indirect {
         error!("Missing required OpenGL extension: GL_ARB_multi_draw_indirect");
         return;
     }
+
+    // Imgui initialization
+    let mut ui = ui::UI::new(12.0, &display, ui::hello_world);
 
     let mut camera = Camera::new();
     camera.translate_by(&Vector3::new(0.0, 0.0, 2000.0));
@@ -69,48 +77,54 @@ fn main() {
             &planet::DrawParameters { wire_frame: true },
         );
 
+        ui.draw(&mut frame, &window, timeline.previous_frame_time());
+
         frame.finish().unwrap();
 
-        events_loop.poll_events(|ev| match ev {
-            glutin::Event::WindowEvent { event, .. } => match event {
-                glutin::WindowEvent::CloseRequested => closed = true,
-                glutin::WindowEvent::KeyboardInput { input, .. } => {
-                    camera_controller.key_event(&input);
-                }
-                glutin::WindowEvent::MouseInput {
-                    state: glutin::ElementState::Pressed,
-                    button: glutin::MouseButton::Left,
-                    ..
-                } => {
-                    left_mouse_pressed = true;
-                    mouse_down_mouse_position = last_logical_mouse_position;
-                    display.gl_window().hide_cursor(true);
-                }
-                glutin::WindowEvent::MouseInput {
-                    state: glutin::ElementState::Released,
-                    button: glutin::MouseButton::Left,
-                    ..
-                } => {
-                    left_mouse_pressed = false;
-                    display
-                        .gl_window()
-                        .set_cursor_position(mouse_down_mouse_position)
-                        .unwrap();
-                    display.gl_window().hide_cursor(false);
-                }
-                glutin::WindowEvent::CursorMoved { position, .. } => {
-                    last_logical_mouse_position = position;
-                }
-                _ => (),
-            },
-            glutin::Event::DeviceEvent { event, .. } => {
-                if let glutin::DeviceEvent::MouseMotion { delta, .. } = event {
-                    if left_mouse_pressed {
-                        camera_controller.mouse_moved(&delta);
+        events_loop.poll_events(|ev| {
+            ui.handle_event(&ev);
+
+            match ev {
+                glutin::Event::WindowEvent { event, .. } => match event {
+                    glutin::WindowEvent::CloseRequested => closed = true,
+                    glutin::WindowEvent::KeyboardInput { input, .. } => {
+                        camera_controller.key_event(&input);
+                    }
+                    glutin::WindowEvent::MouseInput {
+                        state: glutin::ElementState::Pressed,
+                        button: glutin::MouseButton::Left,
+                        ..
+                    } => {
+                        left_mouse_pressed = true;
+                        mouse_down_mouse_position = last_logical_mouse_position;
+                        display.gl_window().hide_cursor(true);
+                    }
+                    glutin::WindowEvent::MouseInput {
+                        state: glutin::ElementState::Released,
+                        button: glutin::MouseButton::Left,
+                        ..
+                    } => {
+                        left_mouse_pressed = false;
+                        display
+                            .gl_window()
+                            .set_cursor_position(mouse_down_mouse_position)
+                            .unwrap();
+                        display.gl_window().hide_cursor(false);
+                    }
+                    glutin::WindowEvent::CursorMoved { position, .. } => {
+                        last_logical_mouse_position = position;
+                    }
+                    _ => (),
+                },
+                glutin::Event::DeviceEvent { event, .. } => {
+                    if let glutin::DeviceEvent::MouseMotion { delta, .. } = event {
+                        if left_mouse_pressed {
+                            camera_controller.mouse_moved(&delta);
+                        }
                     }
                 }
+                _ => (),
             }
-            _ => (),
         })
     }
 }
