@@ -41,6 +41,7 @@ impl Camera {
         Frustum::new(
             self.transform,
             nalgebra::Matrix4::new_perspective(aspect_ratio, self.fov, self.near, self.far),
+            self.far
         )
     }
 }

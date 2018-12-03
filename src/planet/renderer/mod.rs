@@ -315,12 +315,11 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         planet_world_transform: &Transform,
         draw_parameters: &DrawParameters,
     ) {
-        let far_distance = frustum.far_distance();
-
         // Construct a new frustum relative to the planet to ease computations
         let frustum_planet = Frustum::new(
-            planet_world_transform.inverse() * frustum.transform,
+            planet_world_transform.inverse() * &frustum.transform,
             frustum.projection,
+            frustum.far_distance
         );
 
         // Projection frustum is used for the final projection in the shader. This frustum is
@@ -330,6 +329,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let projection_frustum = Frustum::new(
             Transform::from_parts(Translation3::identity(), frustum_planet.transform.rotation),
             frustum.projection,
+            frustum.far_distance
         );
 
         // Construct the cone for horizon culling
@@ -365,7 +365,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
             normal_atlas: self.backing.normals.texture.sampled()
                 .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
-            camera_far: far_distance
+            camera_far: frustum.far_distance
         };
 
         // Setup render pipeline
@@ -458,8 +458,9 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         planet_world_transform: &Transform,
     ) {
         let frustum_planet = Frustum::new(
-            planet_world_transform.inverse() * frustum.transform,
+            planet_world_transform.inverse() * &frustum.transform,
             frustum.projection,
+            frustum.far_distance
         );
 
         for face in self.faces.iter_mut() {

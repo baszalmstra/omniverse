@@ -45,7 +45,7 @@ fn create(event_loop: &glium::glutin::EventsLoop) -> impl glium::backend::Facade
 
 
 #[cfg(any(target_os = "windows"))]
-fn create(event_loop: &glium::glutin::EventsLoop) -> impl glium::backend::Facade {
+fn create(_event_loop: &glium::glutin::EventsLoop) -> impl glium::backend::Facade {
     let context = glium::glutin::HeadlessRendererBuilder::new(1024, 1024)
         .build()
         .unwrap();

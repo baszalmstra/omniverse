@@ -12,17 +12,20 @@ pub struct Frustum {
     pub projection: Matrix4<f32>,
     pub view_projection: Matrix4<f32>,
 
+    pub far_distance: f32,
+
     planes: [Vector4<f32>; 6],
 }
 
 impl Frustum {
-    pub fn new(transform: Transform, projection: Matrix4<f32>) -> Frustum {
+    pub fn new(transform: Transform, projection: Matrix4<f32>, far_distance: f32) -> Frustum {
         let view: Matrix4<f32> = convert(transform.inverse().to_homogeneous());
         let view_projection = projection * view;
         Frustum {
             transform,
             projection,
             view_projection,
+            far_distance,
             planes: [
                 view_projection.row(3).transpose() + view_projection.row(0).transpose(), // Left
                 view_projection.row(3).transpose() - view_projection.row(0).transpose(), // Right
@@ -32,13 +35,6 @@ impl Frustum {
                 view_projection.row(3).transpose() - view_projection.row(2).transpose(), // Far
             ],
         }
-    }
-
-    pub fn far_distance(&self) -> f32 {
-        let far_plane = self.planes[5];
-        let normalized_plane = far_plane / Vector3::new(far_plane.x, far_plane.y, far_plane.z).norm();
-        let pos = self.transform.translation.vector;
-        (normalized_plane.x as f64*pos.x + normalized_plane.y as f64*pos.y + normalized_plane.z as f64*pos.z + normalized_plane.w as f64) as f32
     }
 }
 
