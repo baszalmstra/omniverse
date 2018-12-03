@@ -315,6 +315,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         planet_world_transform: &Transform,
         draw_parameters: &DrawParameters,
     ) {
+        let far_distance = frustum.far_distance();
+
         // Construct a new frustum relative to the planet to ease computations
         let frustum_planet = Frustum::new(
             planet_world_transform.inverse() * frustum.transform,
@@ -362,7 +364,8 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             height_atlas: self.backing.heights.texture.sampled()
                 .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
             normal_atlas: self.backing.normals.texture.sampled()
-                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear)
+                .magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
+            camera_far: far_distance
         };
 
         // Setup render pipeline

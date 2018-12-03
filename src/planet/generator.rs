@@ -1,4 +1,4 @@
-use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH, NORMALS_RESOLUTION};
+use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;

@@ -33,6 +33,13 @@ impl Frustum {
             ],
         }
     }
+
+    pub fn far_distance(&self) -> f32 {
+        let far_plane = self.planes[5];
+        let normalized_plane = far_plane / Vector3::new(far_plane.x, far_plane.y, far_plane.z).norm();
+        let pos = self.transform.translation.vector;
+        (normalized_plane.x as f64*pos.x + normalized_plane.y as f64*pos.y + normalized_plane.z as f64*pos.z + normalized_plane.w as f64) as f32
+    }
 }
 
 impl<T: Scalar> Classify<Point3<T>> for Frustum
