@@ -1,4 +1,4 @@
-use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
+use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH, NORMALS_RESOLUTION};
 use crate::planet;
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
@@ -54,7 +54,7 @@ impl GeometryProvider for Generator {
         }
 
         // Generate normals
-        let normal_step = patch.size / (NORMALS_PER_PATCH as f64 - 1.0);
+        let normal_step = patch.size / ((NORMALS_PER_PATCH - 2) as f64);
         let mut normals: Vec<Vector3<f64>> =
             Vec::with_capacity(NORMALS_PER_PATCH * NORMALS_PER_PATCH);
         for y in 0..NORMALS_PER_PATCH {

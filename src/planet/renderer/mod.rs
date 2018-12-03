@@ -107,6 +107,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 out vec2 Texcoords;
                 out vec4 Color;
                 flat out uint AtlasIndex;
+                out float MorphFactor;
 
                 uniform mat4 view_projection;
                 uniform sampler2DArray height_atlas;
@@ -162,7 +163,9 @@ impl<T: planet::GeometryProvider> Renderer<T> {
 
                     Texcoords = morphed_local_texcoords;
                     AtlasIndex = atlas_index;
-                    Color = vec4(mix(random_colors[lod_level], random_colors[lod_level+1], morph_factor), 1);
+                    //Color = vec4(mix(random_colors[lod_level], random_colors[lod_level+1], morph_factor), 1);
+                    Color = vec4(1,1,1,1);
+                    MorphFactor = morph_factor;
                 }
             "#;
 
@@ -174,6 +177,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 in vec2 Texcoords;
                 in vec4 Color;
                 flat in uint AtlasIndex;
+                in float MorphFactor;
 
                 uniform sampler2DArray normal_atlas;
 
@@ -182,11 +186,16 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 void main() {
                     // Compute the modified texture coordinates
                     ivec2 texture_size = textureSize(normal_atlas, 0).xy;
+                    ivec2 texture_size_low_detail = textureSize(normal_atlas, 1).xy;
                     vec2 texel_size = 1.0 / texture_size.xy;
-                    vec2 normal_atlas_texcoords = Texcoords * (vec2(1.0, 1.0) - texel_size) + texel_size*0.5;
+                    vec2 texel_size_low_detail = 1.0 / texture_size_low_detail.xy;
+                    vec2 normal_atlas_texcoords = Texcoords * (vec2(1.0, 1.0) - 2*texel_size) + texel_size*0.5;
+                    vec2 normal_atlas_texcoords_low_detail = Texcoords * (vec2(1.0, 1.0) - texel_size_low_detail) + texel_size_low_detail*0.5;
 
                     // Sample the normal from the texture atlas
-                    vec3 normal = texture2DArray(normal_atlas, vec3(normal_atlas_texcoords, AtlasIndex)).xyz;
+                    vec3 normal_high_detail = texture2DArrayLod(normal_atlas, vec3(normal_atlas_texcoords, AtlasIndex), 0).xyz;
+                    vec3 normal_low_detail = texture2DArrayLod(normal_atlas, vec3(normal_atlas_texcoords_low_detail, AtlasIndex), 1).xyz;
+                    vec3 normal = normalize(mix(normal_high_detail, normal_low_detail, MorphFactor));
 
                     float nDotL = max(0, dot(normal, vec3(1,0,0)));
                     color = vec4(vec3(nDotL), 1.0) * Color;
