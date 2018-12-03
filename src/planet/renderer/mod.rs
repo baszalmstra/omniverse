@@ -108,10 +108,14 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                 out vec4 Color;
                 flat out uint AtlasIndex;
                 out float MorphFactor;
+                out float LogZ;
 
                 uniform mat4 view_projection;
                 uniform sampler2DArray height_atlas;
                 uniform uint vertices_per_patch;
+
+                uniform float camera_far = 20000000;
+                uniform float camera_log_z_constant = 0.01;
 
                 float sample_height(vec2 texcoord) {
                     // Compute the modified texture coordinates
@@ -159,7 +163,12 @@ impl<T: planet::GeometryProvider> Renderer<T> {
                     vec3 morphed_pos_patch = vec3(morphed_position, sample_height(morphed_local_texcoords));
                     vec4 morphed_pos_camera = pose_camera*vec4(morphed_pos_patch, 1.0);
 
+                    // Project to the screen and apply logarithmic depth buffer
+                    // https://outerra.blogspot.com/2012/11/maximizing-depth-buffer-range-and.html
                     gl_Position = view_projection*morphed_pos_camera;
+                    const float far_constant = 1.0/log(camera_far*camera_log_z_constant + 1);
+                    LogZ = log(gl_Position.w*camera_log_z_constant + 1)*far_constant;
+                    gl_Position.z = (2*LogZ - 1)*gl_Position.w;
 
                     Texcoords = morphed_local_texcoords;
                     AtlasIndex = atlas_index;
@@ -172,18 +181,23 @@ impl<T: planet::GeometryProvider> Renderer<T> {
             let fragment_shader_src = r#"
                 #version 430 core
                 #extension GL_EXT_texture_array : enable
+                #extension GL_ARB_conservative_depth : enable
 
                 in vec3 Normal;
                 in vec2 Texcoords;
                 in vec4 Color;
                 flat in uint AtlasIndex;
                 in float MorphFactor;
+                in float LogZ;
 
                 uniform sampler2DArray normal_atlas;
 
                 out vec4 color;
 
                 void main() {
+                    // Logarithmic depth: https://outerra.blogspot.com/2012/11/maximizing-depth-buffer-range-and.html
+	                gl_FragDepth = LogZ;
+
                     // Compute the modified texture coordinates
                     ivec2 texture_size = textureSize(normal_atlas, 0).xy;
                     ivec2 texture_size_low_detail = textureSize(normal_atlas, 1).xy;
