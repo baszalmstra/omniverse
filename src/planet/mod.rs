@@ -10,8 +10,10 @@ mod generator;
 mod geometry_provider;
 mod quad_tree;
 mod renderer;
+mod terrain;
 
 pub use self::face::Face;
 pub use self::generator::Generator;
 pub use self::geometry_provider::{GeometryProvider, PatchGeometry, PatchLocation};
 pub use self::renderer::{DrawParameters, Renderer};
+pub use self::terrain::{NoiseFunction, TerrainCombinator, TerrainFunction, TerrainLayer};

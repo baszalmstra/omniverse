@@ -10,6 +10,7 @@ extern crate pretty_env_logger;
 extern crate alga;
 extern crate nalgebra;
 extern crate ncollide;
+extern crate simdnoise;
 
 extern crate core;
 
