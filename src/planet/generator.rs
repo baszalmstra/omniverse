@@ -17,9 +17,25 @@ impl Generator {
         let oriented_position = patch.face.orientation() * Vector3::new(x, y, 1.0);
         let dir = morph(oriented_position);
 
-        let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
+        //let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
+        let mut height:f32 = 0.0;
+        use core::arch::x86_64::*;
+        unsafe {
+            let x = _mm_set1_ps(dir.x as f32);
+            let y = _mm_set1_ps(dir.y as f32);
+            let z = _mm_set1_ps(dir.z as f32);
+            let freq = _mm_set1_ps(30.0);
+            let lacunarity = _mm_set1_ps(0.5);
+            let gain = _mm_set1_ps(3.0);
+            let octaves = 3;
+            let result = simdnoise::sse41::fbm_3d(x,y,z,freq,lacunarity,gain, octaves);
+            _mm_store_ss(&mut height as  * mut f32, result);
+        }
 
-        Point3::from_coordinates(dir * (self.description.radius + height))
+        //let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
+        height = height * 500.0;
+
+        Point3::from_coordinates(dir * (self.description.radius + height as f64))
     }
 
     fn compute_normal(&self, x: f64, y: f64, patch: &PatchLocation) -> Vector3<f64> {
