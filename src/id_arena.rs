@@ -60,7 +60,8 @@ impl IdGenerator for SimpleIdArena {
     }
 
     fn len(&self) -> usize {
-        self.counter.load(Ordering::Relaxed)
+        self.counter.load(Ordering::Relaxed) - self.free
+            .try_lock().unwrap().len()
     }
 }
 

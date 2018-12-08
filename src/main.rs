@@ -39,9 +39,10 @@ fn main() {
     let mut ui = ui::UI::new(12.0, &display, ui::hello_world);
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, 2000.0));
+    camera.translate_by(&Vector3::new(0.0, 0.0, 405000.0));
+    camera.set_far(20000000.0);
 
-    let planet_desc = planet::Description { radius: 1000.0 };
+    let planet_desc = planet::Description { radius: 400000.0 };
     let planet_transform = Transform::identity();
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc, planet::Generator::new(planet_desc))

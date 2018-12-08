@@ -144,6 +144,7 @@ impl NodeBacking {
     }
 
     pub fn acquire(&mut self) -> NodeId {
+        println!("Count: {}", self.id_generator.len() + 1);
         self.id_generator
             .acquire()
             .map(NodeId)
@@ -151,6 +152,7 @@ impl NodeBacking {
     }
 
     pub fn release(&mut self, id: NodeId) {
+        println!("Count: {}", self.id_generator.len() - 1);
         self.id_generator.release(id.0);
     }
 

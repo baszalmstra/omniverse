@@ -264,7 +264,7 @@ impl<T: planet::GeometryProvider> Renderer<T> {
         let max_lod_level = ((0.5 * PI * description.radius).log2().ceil() - 1.0).max(1.0) as usize;
 
         let mut split_distances: Vec<f64> = Vec::with_capacity(max_lod_level);
-        split_distances.push(2.0);
+        split_distances.push(1.0);
         let mut last_value = 2.0;
         for _i in 0..=max_lod_level {
             let split_amount = 2.0;
