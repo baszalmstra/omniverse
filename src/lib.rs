@@ -1,8 +1,3 @@
-#![feature(test)]
-#![feature(custom_attribute)]
-//#![feature(extern_crate_item_prelude)]
-
-
 #[macro_use]
 extern crate imgui;
 
@@ -17,7 +12,6 @@ extern crate nalgebra;
 extern crate ncollide;
 
 extern crate core;
-extern crate test;
 
 mod id_arena;
 

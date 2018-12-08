@@ -86,17 +86,17 @@ fn morph(pos: Vector3<f64>) -> Vector3<f64> {
 mod tests {
     use super::*;
     use nalgebra::Point2;
-    use test::Bencher;
-
-    #[bench]
-    fn provide(b: &mut Bencher) {
-        let generator = Generator::new(planet::Description { radius: 100.0 });
-        b.iter(|| {
-            generator.provide(PatchLocation {
-                face: planet::Face::Back,
-                offset: Point2::new(0.0, 0.0),
-                size: 1.0,
-            })
-        });
-    }
+//    use test::Bencher;
+//
+//    #[bench]
+//    fn provide(b: &mut Bencher) {
+//        let generator = Generator::new(planet::Description { radius: 100.0 });
+//        b.iter(|| {
+//            generator.provide(PatchLocation {
+//                face: planet::Face::Back,
+//                offset: Point2::new(0.0, 0.0),
+//                size: 1.0,
+//            })
+//        });
+//    }
 }
