@@ -4,7 +4,7 @@
   "screenshots": [
     {
       "name": "01_screenshot",
-      "position": [0,100,1100],
+      "position": [0,0,410000],
       "rotation": [40,20,0],
       "draw_parameters": {
         "wire_frame": false
@@ -12,7 +12,7 @@
     },
     {
       "name": "01_screenshot_wireframe",
-      "position": [0,100,1100],
+      "position": [0,0,410000],
       "rotation": [40,20,0],
       "draw_parameters": {
         "wire_frame": true
@@ -21,7 +21,7 @@
     },
     {
       "name": "02_screenshot",
-      "position": [0,0,2700],
+      "position": [0,0,1000000],
       "rotation": [0,0,0],
       "draw_parameters": {
         "wire_frame": false
@@ -29,7 +29,7 @@
     },
     {
       "name": "02_screenshot_wireframe",
-      "position": [0,0,2700],
+      "position": [0,0,1000000],
       "rotation": [0,0,0],
       "draw_parameters": {
         "wire_frame": true

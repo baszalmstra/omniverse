@@ -76,7 +76,7 @@ fn main() {
     let display = create(&events_loop);
 
     // Initialize a planet
-    let planet_desc = planet::Description { radius: 1000.0 };
+    let planet_desc = planet::Description { radius: 400000.0 };
     let planet_transform = Transform::identity();
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc, planet::Generator::new(planet_desc))
@@ -125,6 +125,7 @@ fn main() {
             screenshot.rotation.1.to_radians(),
             screenshot.rotation.2.to_radians(),
         ));
+        camera.set_far(20000000.0);
 
         // Construct a frustum
         let frame_size = frame_buffer.get_dimensions();
