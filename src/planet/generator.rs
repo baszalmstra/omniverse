@@ -14,8 +14,8 @@ impl Generator {
     }
 
     #[inline]
-    fn compute_vertex(&self, x: f64, y: f64, patch: &PatchLocation) -> Point3<f64> {
-        let oriented_position = patch.face.orientation() * Vector3::new(x, y, 1.0);
+    //fn compute_vertex(&self, x: f64, y: f64, patch: &PatchLocation) -> Point3<f64> {
+    fn compute_vertex(&self, oriented_position:Vector3<f64>) -> Point3<f64> {
         let dir = morph(oriented_position);
 
         let dir32 = Vector3::new(dir.x as f32, dir.y as f32, dir.z as f32);
@@ -24,13 +24,13 @@ impl Generator {
         Point3::from_coordinates(dir * (self.description.radius + height as f64))
     }
 
-    fn compute_normal(&self, x: f64, y: f64, patch: &PatchLocation) -> Vector3<f64> {
+    fn compute_normal(&self, oriented_position:Vector3<f64>, tangent:&Vector3<f64>, binormal:&Vector3<f64>) -> Vector3<f64> {
         let eps = 0.001;
 
-        let px1 = self.compute_vertex(x - eps, y, patch);
-        let px2 = self.compute_vertex(x + eps, y, patch);
-        let py1 = self.compute_vertex(x, y - eps, patch);
-        let py2 = self.compute_vertex(x, y + eps, patch);
+        let px1 = self.compute_vertex(&oriented_position - tangent*eps);
+        let px2 = self.compute_vertex(&oriented_position + tangent*eps);
+        let py1 = self.compute_vertex(&oriented_position - binormal*eps);
+        let py2 = self.compute_vertex(&oriented_position + binormal*eps);
 
         let x_diff = px2 - px1;
         let y_diff = py2 - py1;
@@ -45,13 +45,15 @@ impl GeometryProvider for Generator {
         let vertex_step = patch.size / (VERTICES_PER_PATCH as f64 - 1.0);
         let mut positions: Vec<Point3<f64>> =
             Vec::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH);
+
+        let corner = patch.face.orientation() * Vector3::new(patch.offset.x - 0.5, patch.offset.y - 0.5, 0.5) * 2.0;
+        let tangent = patch.face.orientation() * Vector3::new(1.0, 0.0, 0.0);
+        let binormal = patch.face.orientation() * Vector3::new(0.0, 1.0, 0.0);
+
         for y in 0..VERTICES_PER_PATCH {
             for x in 0..VERTICES_PER_PATCH {
-                let local_position = Vector2::<f64>::new(
-                    x as f64 * vertex_step - 0.5 + patch.offset.x,
-                    y as f64 * vertex_step - 0.5 + patch.offset.y,
-                ) * 2.0;
-                positions.push(self.compute_vertex(local_position.x, local_position.y, &patch));
+                let local_position = corner + tangent*(vertex_step * 2.0 * x as f64) + binormal*(vertex_step * 2.0 * y as f64);
+                positions.push(self.compute_vertex(local_position) );
             }
         }
 
@@ -61,11 +63,8 @@ impl GeometryProvider for Generator {
             Vec::with_capacity(NORMALS_PER_PATCH * NORMALS_PER_PATCH);
         for y in 0..NORMALS_PER_PATCH {
             for x in 0..NORMALS_PER_PATCH {
-                let local_position = Vector2::<f64>::new(
-                    x as f64 * normal_step - 0.5 + patch.offset.x,
-                    y as f64 * normal_step - 0.5 + patch.offset.y,
-                ) * 2.0;
-                normals.push(self.compute_normal(local_position.x, local_position.y, &patch));
+                let local_position = corner + tangent*(normal_step * 2.0 * x as f64) + binormal*(normal_step * 2.0 * y as f64);
+                normals.push(self.compute_normal(local_position, &tangent, &binormal));
             }
         }
 
