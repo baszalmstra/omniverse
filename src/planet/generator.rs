@@ -18,32 +18,8 @@ impl Generator {
         let oriented_position = patch.face.orientation() * Vector3::new(x, y, 1.0);
         let dir = morph(oriented_position);
 
-        //let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
-        let mut height:f32 = 0.0;
-        use core::arch::x86_64::*;
-        unsafe {
-            let x = _mm_set1_ps(dir.x as f32 * 100.0);
-            let y = _mm_set1_ps(dir.y as f32 * 100.0);
-            let z = _mm_set1_ps(dir.z as f32 * 100.0);
-//            let freq = _mm_set1_ps(0.01);
-//            let lacunarity = _mm_set1_ps(0.5);
-//            let gain = _mm_set1_ps(0.1);
-//            let octaves = 3;
-//            let result = simdnoise::sse41::ridge_3d(x,y,z,freq,lacunarity,gain, octaves);
-//            _mm_store_ss(&mut height as  * mut f32, result);
-            let result =  simdnoise::sse41::simplex_3d(x,y,z);
-            _mm_store_ss(&mut height as  * mut f32, result);
-
-//            // Cellular
-//            let jitter = _mm_set1_ps(30.0);
-//            let result = simdnoise::sse41::cellular_3d(
-//                x, y, z, simdnoise::CellDistanceFunction::Natural, simdnoise::CellReturnType::CellValue, jitter);
-            //_mm_store_ss(&mut height as  * mut f32, result);
-
-        }
-
-        //let height = 20.0 * (f64::sin(30.0 * (dir.x + dir.y + dir.z)) + 1.0);
-        height = height * 100000.0;
+        let dir32 = Vector3::new(dir.x as f32, dir.y as f32, dir.z as f32);
+        let height : f32 = self.description.terrain.compute_height(&dir32);
 
         Point3::from_coordinates(dir * (self.description.radius + height as f64))
     }

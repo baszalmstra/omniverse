@@ -1,7 +1,8 @@
 /// Describes the basic properties of a planet.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Description {
     pub radius: f64,
+    pub terrain: TerrainLayer
 }
 
 mod constants;
@@ -10,8 +11,10 @@ mod generator;
 mod geometry_provider;
 mod quad_tree;
 mod renderer;
+mod terrain;
 
 pub use self::face::Face;
 pub use self::generator::Generator;
 pub use self::geometry_provider::{GeometryProvider, PatchGeometry, PatchLocation};
 pub use self::renderer::{DrawParameters, Renderer};
+pub use self::terrain::{NoiseFunction, TerrainCombinator, TerrainFunction, TerrainLayer};

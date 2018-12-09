@@ -1,0 +1,44 @@
+{
+  "func": {
+    "Children": {
+      "op": "Add",
+      "children": [{
+        "func": {
+          "Constant": 10.0
+        },
+        "low": null,
+        "high": null
+      }, {
+        "func": {
+          "Children": {
+            "op": "Multiply",
+            "children": [{
+              "func": {
+                "Constant": 5000.0
+              },
+              "low": null,
+              "high": null
+            }, {
+              "func": {
+                "Noise":
+                {
+                  "Turbulence":
+                  {
+                    "freq": 7.5,
+                    "lacunarity": 4.0,
+                    "gain": 0.67,
+                    "octaves": 3
+                  }
+                }
+              },
+              "low": null,
+              "high": null
+            }]
+          }
+        }
+      }]
+    }
+  },
+  "low": null,
+  "high": null
+}
