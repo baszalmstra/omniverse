@@ -1,7 +1,8 @@
 /// Describes the basic properties of a planet.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Description {
     pub radius: f64,
+    pub terrain: TerrainLayer
 }
 
 mod constants;
