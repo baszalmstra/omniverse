@@ -4,7 +4,7 @@
       "op": "Add",
       "children": [{
         "func": {
-          "Constant": 1000.0
+          "Constant": 10.0
         },
         "low": null,
         "high": null
@@ -14,7 +14,7 @@
             "op": "Multiply",
             "children": [{
               "func": {
-                "Constant": 500000.0
+                "Constant": 5000.0
               },
               "low": null,
               "high": null
@@ -22,11 +22,11 @@
               "func": {
                 "Noise":
                 {
-                  "FBM":
+                  "Turbulence":
                   {
-                    "freq": 1.0,
-                    "lacunarity": 2.0,
-                    "gain": 0.8,
+                    "freq": 7.5,
+                    "lacunarity": 4.0,
+                    "gain": 0.67,
                     "octaves": 3
                   }
                 }
