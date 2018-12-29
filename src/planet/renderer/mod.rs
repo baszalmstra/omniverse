@@ -58,7 +58,7 @@ implement_vertex!(
     lod_level
 );
 
-pub struct Renderer<T: planet::GeometryProvider> {
+pub struct Renderer<T: planet::AsyncGeometryProvider + planet::GeometryProvider> {
     /// The OpenGL context
     context: Rc<Context>,
 
@@ -81,7 +81,7 @@ struct Face {
     pub root: QuadTree<Node>,
 }
 
-impl<T: planet::GeometryProvider> Renderer<T> {
+impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
     pub fn new<F: ?Sized + Facade>(
         facade: &F,
         description: Description,

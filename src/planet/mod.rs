@@ -19,4 +19,4 @@ pub use self::generator::Generator;
 pub use self::geometry_provider::{GeometryProvider, PatchGeometry, PatchLocation};
 pub use self::renderer::{DrawParameters, Renderer};
 pub use self::terrain::{NoiseFunction, TerrainCombinator, TerrainFunction, TerrainLayer};
-pub use self::async_geometry_provider::AsyncGeometryProvider;
+pub use self::async_geometry_provider::{ThreadpoolGeometryProvider, AsyncGeometryProvider, Token};

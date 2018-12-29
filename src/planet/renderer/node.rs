@@ -6,9 +6,10 @@ use ncollide::bounding_volume::{AABB, AABB3};
 use crate::planet::quad_tree::HasAABB;
 use crate::planet::renderer::node_backing::NodeBacking;
 use crate::planet::renderer::node_backing::NodeId;
+use std::sync::Arc;
 
 pub enum Node {
-    Pending,
+    Pending(Arc<planet::Token>),
     WithGeometry(NodeGeometry),
 }
 

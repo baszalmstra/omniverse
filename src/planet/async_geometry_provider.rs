@@ -26,7 +26,7 @@ pub trait AsyncGeometryProvider {
 }
 
 
-struct ThreadpoolGeometryProvider<T: GeometryProvider> {
+pub struct ThreadpoolGeometryProvider<T: GeometryProvider> {
     provider: Arc<T>,
     queue: Arc<Mutex<Vec<Request>>>,
     is_not_empty: Arc<Condvar>,
@@ -38,7 +38,7 @@ struct ThreadpoolGeometryProvider<T: GeometryProvider> {
 
 impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> {
     /// Create new instance
-    fn new(provider: T) -> ThreadpoolGeometryProvider<T> {
+    pub fn new(provider: T) -> ThreadpoolGeometryProvider<T> {
         let (sender, receiver) = channel();
 
         let mut tgp = ThreadpoolGeometryProvider {
@@ -108,5 +108,12 @@ impl<T: GeometryProvider> AsyncGeometryProvider for ThreadpoolGeometryProvider<T
         for (id, result) in self.receiver.iter() {
             drain(id, result);
         }
+    }
+}
+
+
+impl<T: GeometryProvider> GeometryProvider for ThreadpoolGeometryProvider<T> {
+    fn provide(&self, patch: PatchLocation) -> PatchGeometry {
+        self.provider.provide(patch)
     }
 }
