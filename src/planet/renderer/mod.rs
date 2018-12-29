@@ -31,6 +31,7 @@ use std::collections::VecDeque;
 use crate::planet::renderer::node::NodeGeometry;
 use std::collections::HashMap;
 use std::cell::Cell;
+use std::sync::atomic::Ordering;
 
 #[derive(Deserialize)]
 #[serde(default)]
@@ -484,12 +485,15 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
             );
         }
 
-        let mut backing =  &mut self.backing;
-        let mut pending_requests = &mut self.pending_geometry_requests;
+        let backing =  &mut self.backing;
+        let pending_requests = &mut self.pending_geometry_requests;
         self.geometry_provider.receive_all(|id, data| {
-           let node = pending_requests.get(&id).unwrap().0;
-            unsafe {
-                (*node).content = Node::WithGeometry(NodeGeometry::new(backing, &data));
+            if let Some(node) = pending_requests.get(&id) {
+                let node_geometry = Node::WithGeometry(NodeGeometry::new(backing, &data));
+                unsafe {
+                    (*node.0).content = node_geometry;
+                }
+                pending_requests.remove(&id);
             }
         });
     }
@@ -518,10 +522,12 @@ fn generate_face(
 fn request_node<T: planet::AsyncGeometryProvider>(
     geometry_provider: &T,
     pending_requests: &mut HashMap<usize, PendingGeometryRequest>,
-    location: PatchLocation
+    location: PatchLocation,
+    depth: usize
 ) -> Box<QuadTree<Node>> {
     let (token, id) = geometry_provider.queue(location);
-    let node_ptr = Box::into_raw(Box::new(QuadTree::new(Node::Pending(token))));
+    token.priority.store(depth, Ordering::SeqCst);
+    let node_ptr = Box::into_raw(Box::new(QuadTree::new(Node::Pending(id, token))));
     pending_requests.insert(id, PendingGeometryRequest(node_ptr));
     unsafe { Box::from_raw(node_ptr) }
 }
@@ -545,17 +551,17 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
         // If the node is out of range of it's split distance, remove it's children
         let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
         if !in_range(&geometry.bounding_box(), &frustum_pos, split_distances[depth]) {
-            merge(backing, node);
+            merge(backing, node, pending_requests);
             return;
         }
 
         // Otherwise; ensure that this node has children resident
         if !node.has_children() {
             node.children = Some([
-                request_node(geometry_provider, pending_requests,location.top_left()),
-                request_node(geometry_provider, pending_requests,location.top_right()),
-                request_node(geometry_provider, pending_requests, location.bottom_left()),
-                request_node(geometry_provider, pending_requests, location.bottom_right()),
+                request_node(geometry_provider, pending_requests,location.top_left(),depth),
+                request_node(geometry_provider, pending_requests,location.top_right(),depth),
+                request_node(geometry_provider, pending_requests, location.bottom_left(),depth),
+                request_node(geometry_provider, pending_requests, location.bottom_right(),depth),
             ])
 
 
@@ -576,6 +582,25 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
             }
         }
     }
+}
+
+fn merge(backing: &mut NodeBacking,
+         node: &mut QuadTree<Node>,
+         pending_requests: &mut HashMap<usize, PendingGeometryRequest>) {
+    if let Some(ref mut children) = node.children {
+        for node in children.iter_mut() {
+            match &node.content {
+                Node::Pending(id, token) => {
+                    token.priority.store(0, Ordering::SeqCst); // Priority 0 = cancelled
+                    pending_requests.remove(&id);
+                },
+                Node::WithGeometry(geometry) => {
+                    backing.release(geometry.node_id);
+                },
+            }
+        }
+    }
+    node.children = None;
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -760,17 +785,6 @@ fn add_to_visible_list<'a>(
         morph_range: (split_depth as f32, previous_split_depth as f32),
         lod_level: depth as u16,
     })
-}
-
-fn merge(backing: &mut NodeBacking, node: &mut QuadTree<Node>) {
-    if let Some(ref mut children) = node.children {
-        for node in children.iter_mut() {
-            if let Node::WithGeometry(ref geometry) = node.content {
-                backing.release(geometry.node_id);
-            }
-        }
-    }
-    node.children = None;
 }
 
 fn in_range(

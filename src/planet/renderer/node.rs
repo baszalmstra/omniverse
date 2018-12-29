@@ -9,7 +9,7 @@ use crate::planet::renderer::node_backing::NodeId;
 use std::sync::Arc;
 
 pub enum Node {
-    Pending(Arc<planet::Token>),
+    Pending(usize, Arc<planet::Token>),
     WithGeometry(NodeGeometry),
 }
 

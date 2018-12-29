@@ -82,8 +82,10 @@ fn main() {
     // Initialize a planet
     let planet_desc = planet::Description { radius: 400000.0, terrain: terrain_desc };
     let planet_transform = Transform::identity();
+    let geometry_provider = planet::Generator::new(planet_desc.clone());
+    let async_geometry_provider = planet::SyncGeometryProvider::new(geometry_provider);
     let mut planet_renderer =
-        planet::Renderer::new(&display, planet_desc.clone(), planet::Generator::new(planet_desc))
+        planet::Renderer::new(&display, planet_desc.clone(), async_geometry_provider)
             .expect("Could not instantiate renderer");
 
     for screenshot in screenshot_infos.screenshots.iter() {

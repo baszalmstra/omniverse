@@ -82,7 +82,7 @@ fn main() {
             &mut frame,
             &frustum,
             &planet_transform,
-            &planet::DrawParameters { wire_frame: false },
+            &planet::DrawParameters { wire_frame: true },
         );
 
         ui.draw(&mut frame, &window, timeline.previous_frame_time());
