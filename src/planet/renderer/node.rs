@@ -7,8 +7,13 @@ use crate::planet::quad_tree::HasAABB;
 use crate::planet::renderer::node_backing::NodeBacking;
 use crate::planet::renderer::node_backing::NodeId;
 
+pub enum Node {
+    Pending,
+    WithGeometry(NodeGeometry),
+}
+
 /// Contains geometry information for a single node of a quad tree for a face.
-pub struct Node {
+pub struct NodeGeometry {
     pub node_id: NodeId,
 
     pub aabb: AABB3<f64>,
@@ -16,8 +21,8 @@ pub struct Node {
     pub transform: Matrix4<f64>,
 }
 
-impl Node {
-    pub fn new(backing: &mut NodeBacking, geometry: &planet::PatchGeometry) -> Node {
+impl NodeGeometry {
+    pub fn new(backing: &mut NodeBacking, geometry: &planet::PatchGeometry) -> NodeGeometry {
         use crate::planet::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 
         let id = backing.acquire();
@@ -87,7 +92,7 @@ impl Node {
         backing.heights.write(id, 0, &heights);
         backing.vertices.write(id, &vertices);
 
-        Node {
+        NodeGeometry {
             node_id: id,
             aabb: AABB3::new(min, max),
             origin,
@@ -96,7 +101,7 @@ impl Node {
     }
 }
 
-impl HasAABB<Point3<f64>> for Node where {
+impl HasAABB<Point3<f64>> for NodeGeometry where {
     fn bounding_box(&self) -> AABB<Point3<f64>> {
         self.aabb.clone()
     }
