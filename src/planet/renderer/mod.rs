@@ -28,6 +28,7 @@ use crate::planet::quad_tree::HasAABB;
 use crate::planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use crate::planet::renderer::node::NodeGeometry;
 
 #[derive(Deserialize)]
 #[serde(default)]
@@ -494,7 +495,7 @@ fn generate_face(
 ) -> Face {
     Face {
         face,
-        root: QuadTree::new(Node::new(backing, &geometry_provider.provide(face.into()))),
+        root: QuadTree::new(Node::WithGeometry(NodeGeometry::new(backing, &geometry_provider.provide(face.into())))),
     }
 }
 
@@ -512,47 +513,50 @@ fn ensure_resident_children<F: ?Sized + Facade>(
         return;
     }
 
-    // If the node is out of range of it's split distance, remove it's children
-    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
-    if !in_range(&node.content.aabb, &frustum_pos, split_distances[depth]) {
-        merge(backing, node);
-        return;
-    }
+    if let Node::WithGeometry(ref geometry) = node.content {
 
-    // Otherwise; ensure that this node has children resident
-    if !node.has_children() {
-        node.children = Some(Box::new([
-            QuadTree::new(Node::new(
-                backing,
-                &geometry_provider.provide(location.top_left()),
-            )),
-            QuadTree::new(Node::new(
-                backing,
-                &geometry_provider.provide(location.top_right()),
-            )),
-            QuadTree::new(Node::new(
-                backing,
-                &geometry_provider.provide(location.bottom_left()),
-            )),
-            QuadTree::new(Node::new(
-                backing,
-                &geometry_provider.provide(location.bottom_right()),
-            )),
-        ]))
-    }
+        // If the node is out of range of it's split distance, remove it's children
+        let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
+        if !in_range(&geometry.bounding_box(), &frustum_pos, split_distances[depth]) {
+            merge(backing, node);
+            return;
+        }
 
-    if let Some(ref mut children) = node.children {
-        for child in quad_tree::Child::values() {
-            ensure_resident_children(
-                facade,
-                frustum_planet,
-                geometry_provider,
-                backing,
-                &mut (*children)[child.index()],
-                location.split(*child),
-                depth - 1,
-                split_distances,
-            );
+        // Otherwise; ensure that this node has children resident
+        if !node.has_children() {
+            node.children = Some(Box::new([
+                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                    backing,
+                    &geometry_provider.provide(location.top_left()),
+                ))),
+                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                    backing,
+                    &geometry_provider.provide(location.top_right()),
+                ))),
+                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                    backing,
+                    &geometry_provider.provide(location.bottom_left()),
+                ))),
+                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                    backing,
+                    &geometry_provider.provide(location.bottom_right()),
+                ))),
+            ]))
+        }
+
+        if let Some(ref mut children) = node.children {
+            for child in quad_tree::Child::values() {
+                ensure_resident_children(
+                    facade,
+                    frustum_planet,
+                    geometry_provider,
+                    backing,
+                    &mut (*children)[child.index()],
+                    location.split(*child),
+                    depth - 1,
+                    split_distances,
+                );
+            }
         }
     }
 }
@@ -564,7 +568,7 @@ enum VisibleNodePart {
 }
 
 struct VisibleNode<'a> {
-    pub node: &'a Node,
+    pub node: &'a NodeGeometry,
     pub transform_camera: Matrix4<f32>,
     pub part: VisibleNodePart,
     pub morph_range: (f32, f32),
@@ -610,109 +614,113 @@ fn lod_select<'a>(
 ) -> LODSelectResult {
     use crate::culling::{Classify, Containment};
 
-    let frustum_containment = if parent_completly_in_frustum {
-        Containment::Inside
-    } else {
-        frustum_planet.classify(&node.bounding_box())
-    };
-    if frustum_containment == Containment::Outside {
-        return LODSelectResult::OutOfFrustum;
-    }
-
-    if cone.contains(&node.bounding_box()) {
-        return LODSelectResult::OutOfFrustum;
-    }
-
-    let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
-
-    if depth < max_lod_level {
-        // Check if the node is within the split distance of its parent lod level
-        if !in_range(
-            &node.bounding_box(),
-            &frustum_pos,
-            split_distances[depth + 1],
-        ) {
-            return LODSelectResult::OutOfRange;
+    if let Node::WithGeometry(ref geometry) = node.content {
+        let frustum_containment = if parent_completly_in_frustum {
+            Containment::Inside
+        } else {
+            frustum_planet.classify(&geometry.bounding_box())
+        };
+        if frustum_containment == Containment::Outside {
+            return LODSelectResult::OutOfFrustum;
         }
-    }
 
-    let mut children_selection_results = [LODSelectResult::Undefined; 4];
-    if in_range(&node.bounding_box(), &frustum_pos, split_distances[depth]) {
-        if let Some(ref children) = node.children {
-            let node_completely_in_frustum = frustum_containment == Containment::Inside;
-            for child in quad_tree::Child::values() {
-                children_selection_results[child.index()] = lod_select(
-                    frustum_planet,
-                    cone,
-                    &(*children)[child.index()],
-                    location.split(*child),
-                    depth - 1,
-                    max_lod_level,
-                    split_distances,
-                    node_completely_in_frustum,
-                    result,
-                );
+        if cone.contains(&geometry.bounding_box()) {
+            return LODSelectResult::OutOfFrustum;
+        }
+
+        let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
+
+        if depth < max_lod_level {
+            // Check if the node is within the split distance of its parent lod level
+            if !in_range(
+                &geometry.bounding_box(),
+                &frustum_pos,
+                split_distances[depth + 1],
+            ) {
+                return LODSelectResult::OutOfRange;
             }
         }
 
-        // If non of the nodes was selected because they either lack geometry or where out of range,
-        // the entire node is simply selected
-        if children_selection_results
-            .iter()
-            .all(LODSelectResult::is_not_selected)
-        {
+        let mut children_selection_results = [LODSelectResult::Undefined; 4];
+        if in_range(&geometry.bounding_box(), &frustum_pos, split_distances[depth]) {
+            if let Some(ref children) = node.children {
+                let node_completely_in_frustum = frustum_containment == Containment::Inside;
+                for child in quad_tree::Child::values() {
+                    children_selection_results[child.index()] = lod_select(
+                        frustum_planet,
+                        cone,
+                        &(*children)[child.index()],
+                        location.split(*child),
+                        depth - 1,
+                        max_lod_level,
+                        split_distances,
+                        node_completely_in_frustum,
+                        result,
+                    );
+                }
+            }
+
+            // If non of the nodes was selected because they either lack geometry or where out of range,
+            // the entire node is simply selected
+            if children_selection_results
+                .iter()
+                .all(LODSelectResult::is_not_selected)
+            {
+                // If the node has no children, we'll add it anyway
+                add_to_visible_list(
+                    frustum_planet,
+                    &geometry,
+                    depth,
+                    split_distances,
+                    result,
+                    VisibleNodePart::Whole,
+                );
+                return LODSelectResult::Selected;
+            }
+
+            // If any of the nodes is not selected because it has no geometry or because it's out of
+            // range, fill it in with geometry from the parent node
+            for child in quad_tree::Child::values()
+                .filter(|c| children_selection_results[c.index()].is_not_selected())
+                {
+                    add_to_visible_list(
+                        frustum_planet,
+                        &geometry,
+                        depth,
+                        split_distances,
+                        result,
+                        VisibleNodePart::Child(*child),
+                    )
+                }
+
+            if children_selection_results
+                .iter()
+                .any(|s| *s == LODSelectResult::Selected)
+            {
+                LODSelectResult::Selected
+            } else {
+                LODSelectResult::OutOfFrustum
+            }
+        } else {
             // If the node has no children, we'll add it anyway
             add_to_visible_list(
                 frustum_planet,
-                &node.content,
+                &geometry,
                 depth,
                 split_distances,
                 result,
                 VisibleNodePart::Whole,
             );
-            return LODSelectResult::Selected;
-        }
-
-        // If any of the nodes is not selected because it has no geometry or because it's out of
-        // range, fill it in with geometry from the parent node
-        for child in quad_tree::Child::values()
-            .filter(|c| children_selection_results[c.index()].is_not_selected())
-        {
-            add_to_visible_list(
-                frustum_planet,
-                &node.content,
-                depth,
-                split_distances,
-                result,
-                VisibleNodePart::Child(*child),
-            )
-        }
-
-        if children_selection_results
-            .iter()
-            .any(|s| *s == LODSelectResult::Selected)
-        {
             LODSelectResult::Selected
-        } else {
-            LODSelectResult::OutOfFrustum
         }
     } else {
-        // If the node has no children, we'll add it anyway
-        add_to_visible_list(
-            frustum_planet,
-            &node.content,
-            depth,
-            split_distances,
-            result,
-            VisibleNodePart::Whole,
-        );
-        LODSelectResult::Selected
+        LODSelectResult::Undefined
     }
 }
 
 fn add_to_visible_list<'a>(
     frustum_planet: &Frustum,
-    node: &'a Node,
+    node: &'a NodeGeometry,
     depth: usize,
     split_distances: &[f64],
     result: &mut VecDeque<VisibleNode<'a>>,
@@ -740,7 +748,9 @@ fn add_to_visible_list<'a>(
 fn merge(backing: &mut NodeBacking, node: &mut QuadTree<Node>) {
     if let Some(ref mut children) = node.children {
         for node in children.iter_mut() {
-            backing.release(node.content.node_id);
+            if let Node::WithGeometry(ref geometry) = node.content {
+                backing.release(geometry.node_id);
+            }
         }
     }
     node.children = None;
