@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver};
 use std::sync::mpsc::channel;
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -22,7 +22,7 @@ struct Request {
 
 pub trait AsyncGeometryProvider {
     fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize);
-    fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, mut drain: F);
+    fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, drain: F);
 }
 
 
@@ -58,7 +58,7 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
             let thread_sender = sender.clone();
 
             let handle = thread::spawn(move || {
-                let mut queue = thread_queue.lock().expect("Could not lock queue");
+                let queue = thread_queue.lock().expect("Could not lock queue");
 
                 while !thread_should_stop.load(Ordering::Relaxed) {
                     let request = {
@@ -80,7 +80,7 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
                         queue.pop().expect("Queue is empty, this should be impossible!")
                     };
 
-                    thread_sender.send((request.id, thread_provider.provide(request.patch_location)));
+                    thread_sender.send((request.id, thread_provider.provide(request.patch_location))).expect("Could not send patch result over Channel");
                 }
             });
             tgp.threads.push(handle);
