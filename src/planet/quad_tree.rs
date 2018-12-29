@@ -2,6 +2,9 @@ use ncollide::bounding_volume::AABB;
 use std::boxed::Box;
 use std::iter::Iterator;
 use std::option::Option;
+use std::rc::Rc;
+use std::cell::Cell;
+use std::cell::RefCell;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Child {
@@ -34,7 +37,7 @@ impl Child {
 
 pub struct QuadTree<T> {
     pub content: T,
-    pub children: Option<Box<[QuadTree<T>; 4]>>,
+    pub children: Option<[Box<QuadTree<T>>; 4]>,
 }
 
 impl<T> QuadTree<T> {

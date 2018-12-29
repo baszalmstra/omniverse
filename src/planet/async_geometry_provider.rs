@@ -58,8 +58,6 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
             let thread_sender = sender.clone();
 
             let handle = thread::spawn(move || {
-                let queue = thread_queue.lock().expect("Could not lock queue");
-
                 while !thread_should_stop.load(Ordering::Relaxed) {
                     let request = {
                         let mut queue = thread_queue.lock().expect("Could not lock queue");
@@ -105,7 +103,7 @@ impl<T: GeometryProvider> AsyncGeometryProvider for ThreadpoolGeometryProvider<T
     }
 
     fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, mut drain: F) {
-        for (id, result) in self.receiver.iter() {
+        for (id, result) in self.receiver.try_iter() {
             drain(id, result);
         }
     }

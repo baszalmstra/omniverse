@@ -29,6 +29,8 @@ use crate::planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use crate::planet::renderer::node::NodeGeometry;
+use std::collections::HashMap;
+use std::cell::Cell;
 
 #[derive(Deserialize)]
 #[serde(default)]
@@ -41,6 +43,8 @@ impl Default for DrawParameters {
         DrawParameters { wire_frame: false }
     }
 }
+
+struct PendingGeometryRequest(*mut QuadTree<Node>);
 
 #[derive(Copy, Clone)]
 struct PerNodeInstanceVertex {
@@ -74,6 +78,8 @@ pub struct Renderer<T: planet::AsyncGeometryProvider + planet::GeometryProvider>
 
     program: Program,
     index_buffer: IndexBuffer<u16>,
+
+    pending_geometry_requests: HashMap<usize, PendingGeometryRequest>
 }
 
 struct Face {
@@ -302,6 +308,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
                 facade,
                 MAX_PATCH_COUNT,
             )?),
+            pending_geometry_requests: HashMap::new()
         })
     }
 
@@ -466,16 +473,25 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
 
         for face in self.faces.iter_mut() {
             ensure_resident_children(
-                &self.context,
+                        &mut self.backing,
+                &mut self.pending_geometry_requests,
                 &frustum_planet,
                 &self.geometry_provider,
-                &mut self.backing,
                 &mut face.root,
                 face.face.into(),
                 self.max_lod_level,
                 &self.split_distances,
             );
         }
+
+        let mut backing =  &mut self.backing;
+        let mut pending_requests = &mut self.pending_geometry_requests;
+        self.geometry_provider.receive_all(|id, data| {
+           let node = pending_requests.get(&id).unwrap().0;
+            unsafe {
+                (*node).content = Node::WithGeometry(NodeGeometry::new(backing, &data));
+            }
+        });
     }
 
     /// Returns the context corresponding to this Renderer.
@@ -499,11 +515,22 @@ fn generate_face(
     }
 }
 
-fn ensure_resident_children<F: ?Sized + Facade>(
-    facade: &F,
-    frustum_planet: &Frustum,
-    geometry_provider: &planet::GeometryProvider,
+fn request_node<T: planet::AsyncGeometryProvider>(
+    geometry_provider: &T,
+    pending_requests: &mut HashMap<usize, PendingGeometryRequest>,
+    location: PatchLocation
+) -> Box<QuadTree<Node>> {
+    let (token, id) = geometry_provider.queue(location);
+    let node_ptr = Box::into_raw(Box::new(QuadTree::new(Node::Pending(token))));
+    pending_requests.insert(id, PendingGeometryRequest(node_ptr));
+    unsafe { Box::from_raw(node_ptr) }
+}
+
+fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
     backing: &mut NodeBacking,
+    pending_requests: &mut HashMap<usize, PendingGeometryRequest>,
+    frustum_planet: &Frustum,
+    geometry_provider: &T,
     node: &mut QuadTree<Node>,
     location: PatchLocation,
     depth: usize,
@@ -524,33 +551,23 @@ fn ensure_resident_children<F: ?Sized + Facade>(
 
         // Otherwise; ensure that this node has children resident
         if !node.has_children() {
-            node.children = Some(Box::new([
-                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
-                    backing,
-                    &geometry_provider.provide(location.top_left()),
-                ))),
-                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
-                    backing,
-                    &geometry_provider.provide(location.top_right()),
-                ))),
-                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
-                    backing,
-                    &geometry_provider.provide(location.bottom_left()),
-                ))),
-                QuadTree::new(Node::WithGeometry(NodeGeometry::new(
-                    backing,
-                    &geometry_provider.provide(location.bottom_right()),
-                ))),
-            ]))
+            node.children = Some([
+                request_node(geometry_provider, pending_requests,location.top_left()),
+                request_node(geometry_provider, pending_requests,location.top_right()),
+                request_node(geometry_provider, pending_requests, location.bottom_left()),
+                request_node(geometry_provider, pending_requests, location.bottom_right()),
+            ])
+
+
         }
 
         if let Some(ref mut children) = node.children {
             for child in quad_tree::Child::values() {
                 ensure_resident_children(
-                    facade,
+                    backing,
+                    pending_requests,
                     frustum_planet,
                     geometry_provider,
-                    backing,
                     &mut (*children)[child.index()],
                     location.split(*child),
                     depth - 1,
