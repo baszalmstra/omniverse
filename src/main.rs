@@ -40,13 +40,13 @@ fn main() {
     let mut ui = ui::UI::new(12.0, &display, ui::hello_world);
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, 405000.0));
-    camera.set_far(20000000.0);
+    camera.translate_by(&Vector3::new(0.0, 0.0, 405_000.0));
+    camera.set_far(200_00000.0);
 
     let terrain_str = fs::read_to_string("resources/terrain.json").expect("Missing resource file: resources/terrain.json");
     let terrain_desc = serde_json::from_str(&terrain_str).expect("Corrupt JSON in file: resources/terrain.json");
 
-    let planet_desc = planet::Description { radius: 400000.0, terrain: terrain_desc };
+    let planet_desc = planet::Description { radius: 400_000.0, terrain: terrain_desc };
     let planet_transform = Transform::identity();
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc.clone(), planet::Generator::new(planet_desc))

@@ -12,6 +12,7 @@ mod geometry_provider;
 mod quad_tree;
 mod renderer;
 mod terrain;
+mod async_geometry_provider;
 
 pub use self::face::Face;
 pub use self::generator::Generator;
