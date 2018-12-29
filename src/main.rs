@@ -48,6 +48,7 @@ fn main() {
 
     let planet_desc = planet::Description { radius: 400_000.0, terrain: terrain_desc };
     let planet_transform = Transform::identity();
+
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc.clone(), planet::Generator::new(planet_desc))
             .expect("Could not instantiate renderer");
