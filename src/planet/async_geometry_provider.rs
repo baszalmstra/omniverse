@@ -5,8 +5,9 @@ use std::sync::Arc;
 use std::sync::Condvar;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{Receiver};
+use std::sync::mpsc::Receiver;
 use std::sync::mpsc::channel;
+use std::sync::mpsc::Sender;
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
@@ -21,7 +22,12 @@ struct Request {
 }
 
 pub trait AsyncGeometryProvider {
+    /// Queues the patch location for processing at a later time, returns a token with a priority
+    /// and an id to identify the patch later
     fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize);
+
+    /// Receives all values that have been processend and passes these to a callback function
+    /// that can use them as it pleases
     fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, drain: F);
 }
 
@@ -37,7 +43,7 @@ struct ThreadpoolGeometryProvider<T: GeometryProvider> {
 
 
 impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> {
-    /// Create new instance
+    /// Create new instance, all threads are started and waiting for patches to be generated
     fn new(provider: T) -> ThreadpoolGeometryProvider<T> {
         let (sender, receiver) = channel();
 
@@ -58,8 +64,6 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
             let thread_sender = sender.clone();
 
             let handle = thread::spawn(move || {
-                let queue = thread_queue.lock().expect("Could not lock queue");
-
                 while !thread_should_stop.load(Ordering::Relaxed) {
                     let request = {
                         let mut queue = thread_queue.lock().expect("Could not lock queue");
@@ -91,7 +95,9 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
 }
 
 
+/// Implementation of the async code for the Geometry provider working with a threadpool
 impl<T: GeometryProvider> AsyncGeometryProvider for ThreadpoolGeometryProvider<T> {
+    /// Queue and process the patches asynchronously
     fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize) {
         let next = NEXT.fetch_add(1, Ordering::SeqCst);
         let request = Request { id: next, token: Arc::new(Token { priority: 1 }), patch_location };
@@ -104,9 +110,50 @@ impl<T: GeometryProvider> AsyncGeometryProvider for ThreadpoolGeometryProvider<T
         (token, next)
     }
 
+    /// Receive all values sent over the channel
     fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, mut drain: F) {
         for (id, result) in self.receiver.iter() {
             drain(id, result);
         }
     }
 }
+
+
+/// This is a geometry provider that acts like a async provider but is
+/// actually an synchronous provider
+struct SyncGeometryProvider<T: GeometryProvider> {
+    provider: T,
+    sender: Sender<(usize, PatchGeometry)>,
+    receiver: Receiver<(usize, PatchGeometry)>,
+}
+
+impl<T: GeometryProvider> SyncGeometryProvider<T> {
+    /// Create new sync geometry provider
+    fn new(provider: T) -> SyncGeometryProvider<T> {
+        let (sender, receiver) = channel();
+
+        SyncGeometryProvider {
+            provider,
+            sender,
+            receiver,
+        }
+    }
+}
+
+impl<T: GeometryProvider> AsyncGeometryProvider for SyncGeometryProvider<T> {
+    /// Queue and process directly, send directly over a channel
+    fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize) {
+        let next = NEXT.fetch_add(1, Ordering::SeqCst);
+        let token = Arc::new(Token { priority: 1 });
+        self.sender.send((next, self.provider.provide(patch_location))).expect("Could not send processing result over channel");
+        (token, next)
+    }
+
+    /// Receive all values sent over channel
+    fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, mut drain: F) {
+        for (id, result) in self.receiver.iter() {
+            drain(id, result);
+        }
+    }
+}
+
