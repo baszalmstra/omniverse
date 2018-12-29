@@ -26,7 +26,7 @@ pub trait AsyncGeometryProvider {
     /// and an id to identify the patch later
     fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize);
 
-    /// Receives all values that have been processend and passes these to a callback function
+    /// Receives all values that have been processed and passes these to a callback function
     /// that can use them as it pleases
     fn receive_all<F: FnMut(usize, PatchGeometry) -> ()>(&self, drain: F);
 }
@@ -72,10 +72,13 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
                             queue = thread_is_not_empty.wait(queue).expect("Could not wait on queue");
                         }
 
+                        // If this is the case, then we should stop
                         if queue.is_empty() {
                             break;
                         }
 
+                        // Drop all cancelled tokens
+                        queue.retain(|a| a.token.priority != 0);
                         // Sort the queue by priority
                         queue.sort_by(|a, b| {
                             a.token.priority.cmp(&b.token.priority)
@@ -115,6 +118,18 @@ impl<T: GeometryProvider> AsyncGeometryProvider for ThreadpoolGeometryProvider<T
         for (id, result) in self.receiver.iter() {
             drain(id, result);
         }
+    }
+}
+
+/// Implement drop for provider so threads are stopped
+impl<T: GeometryProvider> Drop for ThreadpoolGeometryProvider<T>{
+    fn drop(&mut self) {
+        {
+            let mut queue = self.queue.lock().expect("Could not lock queue to drop value");
+            queue.clear()
+        }
+        self.should_stop.store(true, Ordering::AcqRel);
+        self.is_not_empty.notify_all();
     }
 }
 
