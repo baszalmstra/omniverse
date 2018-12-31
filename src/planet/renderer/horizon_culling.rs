@@ -6,6 +6,7 @@ use ncollide::bounding_volume::AABB3;
 
 /// Implementation based on: https://cesium.com/blog/2013/04/25/horizon-culling/
 
+#[derive(Clone)]
 pub struct Cone<T: Real> {
     origin: Point3<T>,
     direction: Vector3<T>,

@@ -84,7 +84,12 @@ impl CameraController {
     pub fn mouse_wheel_event(&mut self, delta: glutin::MouseScrollDelta) {
         match delta {
             glutin::MouseScrollDelta::LineDelta(_,y) => {
-                self.movement_speed = (self.movement_speed+y*40.0).max(1.0);
+                const SPEED:f32 = 0.3;
+                if y >= 0.0 {
+                    self.movement_speed = (self.movement_speed * (1.0 + y*SPEED)).max(1.0);
+                } else {
+                    self.movement_speed = (self.movement_speed / (1.0 - y*SPEED)).max(1.0);
+                }
             }
             _=> {}
         }

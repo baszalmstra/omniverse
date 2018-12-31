@@ -57,7 +57,8 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
             receiver,
         };
 
-        for _ in 0..3 {
+        let number_of_workers = num_cpus::get() - 1;
+        for _ in 0..number_of_workers {
             let thread_provider = tgp.provider.clone();
             let thread_queue = tgp.queue.clone();
             let thread_is_not_empty = tgp.is_not_empty.clone();
@@ -82,10 +83,13 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
                         queue.retain(|a| a.token.priority.load(Ordering::SeqCst) != 0);
                         // Sort the queue by priority
                         queue.sort_by(|a, b| {
-                            a.token.priority.load(Ordering::SeqCst).cmp(&b.token.priority.load(Ordering::SeqCst))
+                            b.token.priority.load(Ordering::SeqCst).cmp(&a.token.priority.load(Ordering::SeqCst))
                         });
 
-                        queue.pop().expect("Queue is empty, this should be impossible!")
+                        match queue.pop() {
+                            Some(result) => result,
+                            None => continue    // The queue could be empty if the last request is cancelled
+                        }
                     };
 
                     thread_sender.send((request.id, thread_provider.provide(request.patch_location))).expect("Could not send patch result over Channel");

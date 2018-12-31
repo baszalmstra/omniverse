@@ -2,9 +2,6 @@ use ncollide::bounding_volume::AABB;
 use std::boxed::Box;
 use std::iter::Iterator;
 use std::option::Option;
-use std::rc::Rc;
-use std::cell::Cell;
-use std::cell::RefCell;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Child {

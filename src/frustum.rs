@@ -6,6 +6,7 @@ use crate::culling::Containment;
 use nalgebra::{convert, Matrix4, Point3, Scalar, Vector3, Vector4};
 use ncollide::bounding_volume::AABB3;
 
+#[derive(Clone)]
 pub struct Frustum {
     pub transform: Transform,
 
@@ -35,6 +36,20 @@ impl Frustum {
                 view_projection.row(3).transpose() - view_projection.row(2).transpose(), // Far
             ],
         }
+    }
+
+    /// Constructs a new frustum that is relative to the given transform.
+    pub fn relative_to(&self, transform: &Transform) -> Frustum {
+        self.with_transform(transform.inverse() * &self.transform)
+    }
+
+    /// Constructs a new frustum that only differs in its transform
+    pub fn with_transform(&self, transform: Transform) -> Frustum {
+        Frustum::new(
+            transform,
+            self.projection,
+            self.far_distance
+        )
     }
 }
 

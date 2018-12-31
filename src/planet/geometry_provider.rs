@@ -12,6 +12,9 @@ pub struct PatchLocation {
 
     /// 1 is the entire face
     pub size: f64,
+
+    /// The lod level of this patch, higher means more detail
+    pub lod_level: usize
 }
 
 impl PatchLocation {
@@ -23,21 +26,25 @@ impl PatchLocation {
                 face,
                 offset: Point2::new(self.offset.x, self.offset.y),
                 size,
+                lod_level: self.lod_level + 1,
             },
             quad_tree::Child::TopRight => PatchLocation {
                 face,
                 offset: Point2::new(self.offset.x + size, self.offset.y),
                 size,
+                lod_level: self.lod_level + 1,
             },
             quad_tree::Child::BottomLeft => PatchLocation {
                 face,
                 offset: Point2::new(self.offset.x, self.offset.y + size),
                 size,
+                lod_level: self.lod_level + 1,
             },
             quad_tree::Child::BottomRight => PatchLocation {
                 face,
                 offset: Point2::new(self.offset.x + size, self.offset.y + size),
                 size,
+                lod_level: self.lod_level + 1,
             },
         }
     }
@@ -65,6 +72,7 @@ impl Into<PatchLocation> for Face {
             face: self,
             offset: Point2::new(0.0, 0.0),
             size: 1.0,
+            lod_level: 0
         }
     }
 }

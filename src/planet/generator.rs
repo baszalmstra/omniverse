@@ -2,7 +2,7 @@ use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
-use nalgebra::{Point3, Vector2, Vector3};
+use nalgebra::{Point3, Vector3};
 
 pub struct Generator {
     description: planet::Description,
@@ -83,21 +83,21 @@ fn morph(pos: Vector3<f64>) -> Vector3<f64> {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nalgebra::Point2;
-//    use test::Bencher;
-//
-//    #[bench]
-//    fn provide(b: &mut Bencher) {
-//        let generator = Generator::new(planet::Description { radius: 100.0 });
-//        b.iter(|| {
-//            generator.provide(PatchLocation {
-//                face: planet::Face::Back,
-//                offset: Point2::new(0.0, 0.0),
-//                size: 1.0,
-//            })
-//        });
-//    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//    use nalgebra::Point2;
+////    use test::Bencher;
+////
+////    #[bench]
+////    fn provide(b: &mut Bencher) {
+////        let generator = Generator::new(planet::Description { radius: 100.0 });
+////        b.iter(|| {
+////            generator.provide(PatchLocation {
+////                face: planet::Face::Back,
+////                offset: Point2::new(0.0, 0.0),
+////                size: 1.0,
+////            })
+////        });
+////    }
+//}

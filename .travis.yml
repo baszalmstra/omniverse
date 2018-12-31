@@ -3,7 +3,12 @@ os:
 - linux
 - windows
 rust:
+- stable
 - nightly
+matrix:
+  allow_failures:
+  - rust: nightly
+  fast_finish: true
 cache: cargo
 script:
 - cargo build --verbose --all
