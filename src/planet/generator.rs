@@ -2,15 +2,19 @@ use super::constants::{NORMALS_PER_PATCH, VERTICES_PER_PATCH};
 use crate::planet;
 use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
-use nalgebra::{Point3, Vector3};
+use nalgebra::{Point3, Vector3, Point2};
+use crate::planet::Face;
 
+#[derive(Clone)]
 pub struct Generator {
     description: planet::Description,
 }
 
 impl Generator {
     pub fn new(description: planet::Description) -> Generator {
-        Generator { description }
+        Generator {
+            description
+        }
     }
 
     #[inline]
@@ -40,7 +44,7 @@ impl Generator {
 }
 
 impl GeometryProvider for Generator {
-    fn provide(&self, patch: PatchLocation) -> PatchGeometry {
+    fn compute_geometry(&self, patch: PatchLocation) -> PatchGeometry {
         // Generate vertices
         let vertex_step = patch.size / (VERTICES_PER_PATCH as f64 - 1.0);
         let mut positions: Vec<Point3<f64>> =
@@ -69,6 +73,10 @@ impl GeometryProvider for Generator {
         }
 
         PatchGeometry { positions, normals }
+    }
+
+    fn position_at(&self, face: Face, offset: Point2<f64>) -> Point3<f64> {
+        self.compute_vertex(face.orientation() * Vector3::new(offset.x, offset.y, 0.5))
     }
 }
 

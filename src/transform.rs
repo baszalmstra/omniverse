@@ -20,6 +20,10 @@ pub trait Transformable {
         }
         self
     }
+
+    fn pitch(&mut self, angle:f64) -> &mut Self {
+        self.rotate_by(&nalgebra::UnitQuaternion::from_euler_angles(angle, 0.0, 0.0))
+    }
 }
 
 impl Transformable for Transform {

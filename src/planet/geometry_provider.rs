@@ -84,5 +84,6 @@ pub struct PatchGeometry {
 }
 
 pub trait GeometryProvider {
-    fn provide(&self, patch: PatchLocation) -> PatchGeometry;
+    fn compute_geometry(&self, patch: PatchLocation) -> PatchGeometry;
+    fn position_at(&self, face: Face, offset: Point2<f64>) -> Point3<f64>;
 }

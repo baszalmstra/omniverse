@@ -8,13 +8,18 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::Receiver;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender;
+use nalgebra::{Point2, Point3};
+use crate::planet::Face;
+use std::prelude::v1::Vec;
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
+#[derive(Debug)]
 pub struct Token {
     pub priority: AtomicUsize,
 }
 
+#[derive(Debug)]
 struct Request {
     id: usize,
     token: Arc<Token>,
@@ -33,7 +38,7 @@ pub trait AsyncGeometryProvider {
 
 
 pub struct ThreadpoolGeometryProvider<T: GeometryProvider> {
-    provider: Arc<T>,
+    provider: T,
     queue: Arc<Mutex<Vec<Request>>>,
     is_not_empty: Arc<Condvar>,
     should_stop: Arc<AtomicBool>,
@@ -42,14 +47,14 @@ pub struct ThreadpoolGeometryProvider<T: GeometryProvider> {
 }
 
 
-impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> {
+impl<T: GeometryProvider + Send + Clone + 'static> ThreadpoolGeometryProvider<T> {
 
     /// Create new instance, all threads are started and waiting for patches to be generated
     pub fn new(provider: T) -> ThreadpoolGeometryProvider<T> {
         let (sender, receiver) = channel();
 
         let mut tgp = ThreadpoolGeometryProvider {
-            provider: Arc::new(provider),
+            provider: provider,
             is_not_empty: Arc::new(Condvar::new()),
             should_stop: Arc::new(AtomicBool::new(false)),
             queue: Arc::new(Mutex::new(Vec::new())),
@@ -83,7 +88,7 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
                         queue.retain(|a| a.token.priority.load(Ordering::SeqCst) != 0);
                         // Sort the queue by priority
                         queue.sort_by(|a, b| {
-                            b.token.priority.load(Ordering::SeqCst).cmp(&a.token.priority.load(Ordering::SeqCst))
+                            a.token.priority.load(Ordering::SeqCst).cmp(&b.token.priority.load(Ordering::SeqCst))
                         });
 
                         match queue.pop() {
@@ -92,7 +97,8 @@ impl<T: GeometryProvider + Send + Sync + 'static> ThreadpoolGeometryProvider<T> 
                         }
                     };
 
-                    thread_sender.send((request.id, thread_provider.provide(request.patch_location))).expect("Could not send patch result over Channel");
+
+                    thread_sender.send((request.id, thread_provider.compute_geometry(request.patch_location))).expect("Could not send patch result over Channel");
                 }
             });
             tgp.threads.push(handle);
@@ -167,7 +173,7 @@ impl<T: GeometryProvider> AsyncGeometryProvider for SyncGeometryProvider<T> {
     fn queue(&self, patch_location: PatchLocation) -> (Arc<Token>, usize) {
         let next = NEXT.fetch_add(1, Ordering::SeqCst);
         let token = Arc::new(Token { priority: AtomicUsize::new(1) });
-        self.sender.send((next, self.provider.provide(patch_location))).expect("Could not send processing result over channel");
+        self.sender.send((next, self.provider.compute_geometry(patch_location))).expect("Could not send processing result over channel");
         (token, next)
     }
 
@@ -180,13 +186,20 @@ impl<T: GeometryProvider> AsyncGeometryProvider for SyncGeometryProvider<T> {
 }
 
 impl<T: GeometryProvider> GeometryProvider for ThreadpoolGeometryProvider<T> {
-    fn provide(&self, patch: PatchLocation) -> PatchGeometry {
-        self.provider.provide(patch)
+    fn compute_geometry(&self, patch: PatchLocation) -> PatchGeometry {
+        self.provider.compute_geometry(patch)
+    }
+
+    fn position_at(&self, face: Face, offset: Point2<f64>) -> Point3<f64> {
+        self.provider.position_at(face, offset)
     }
 }
 
 impl<T: GeometryProvider> GeometryProvider for SyncGeometryProvider<T> {
-    fn provide(&self, patch: PatchLocation) -> PatchGeometry {
-        self.provider.provide(patch)
+    fn compute_geometry(&self, patch: PatchLocation) -> PatchGeometry {
+        self.provider.compute_geometry(patch)
+    }
+    fn position_at(&self, face: Face, offset: Point2<f64>) -> Point3<f64> {
+        self.provider.position_at(face, offset)
     }
 }

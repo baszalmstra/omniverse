@@ -40,8 +40,9 @@ fn main() {
     let mut ui = ui::UI::new(12.0, &display, ui::hello_world);
 
     let mut camera = Camera::new();
-    camera.translate_by(&Vector3::new(0.0, 0.0, 405_000.0));
+    camera.translate_by(&Vector3::new(0.0, 0.0, 402_000.0));
     camera.set_far(200_00000.0);
+    camera.pitch(std::f64::consts::PI*0.5);
 
     let terrain_str = fs::read_to_string("resources/terrain.json").expect("Missing resource file: resources/terrain.json");
     let terrain_desc = serde_json::from_str(&terrain_str).expect("Corrupt JSON in file: resources/terrain.json");
@@ -82,7 +83,7 @@ fn main() {
             &mut frame,
             &frustum,
             &planet_transform,
-            &planet::DrawParameters { wire_frame: true },
+            &planet::DrawParameters { wire_frame: false },
         );
 
         ui.draw(&mut frame, &window, timeline.previous_frame_time());

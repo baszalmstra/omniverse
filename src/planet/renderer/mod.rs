@@ -31,6 +31,7 @@ use std::collections::VecDeque;
 use crate::planet::renderer::node::NodeGeometry;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
+use crate::culling::Classify;
 
 #[derive(Deserialize)]
 #[serde(default)]
@@ -292,7 +293,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
         ) -> Face {
             Face {
                 face,
-                root: QuadTree::new(Node::WithGeometry(NodeGeometry::new(backing, &geometry_provider.provide(face.into())))),
+                root: QuadTree::new(Node::WithGeometry(NodeGeometry::new(backing, &geometry_provider.compute_geometry(face.into())))),
             }
         }
 
@@ -480,6 +481,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
                 &self.geometry_provider,
                 &mut face.root,
                 face.face.into(),
+                true,
                 &self.split_distances,
             );
         }
@@ -513,6 +515,7 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
     geometry_provider: &T,
     node: &mut QuadTree<Node>,
     location: PatchLocation,
+    parent_in_frustum: bool,
     split_distances: &[f64],
 ) {
     // Do not split the last LOD level.
@@ -529,6 +532,8 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
             merge(backing, node, pending_requests);
             return;
         }
+
+        let in_frustum = frustum_planet.intersects(&geometry.aabb);
 
         // Otherwise; ensure that this node has children resident
         if !node.has_children() {
@@ -549,12 +554,13 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
                     geometry_provider,
                     &mut (*children)[child.index()],
                     location.split(*child),
+                    in_frustum,
                     split_distances,
                 );
             }
         }
-    } else if let Node::Pending(_, ref _token) = node.content {
-        // TODO: Update the priority here
+    } else if let Node::Pending(_, ref token) = node.content {
+        token.priority.store(location.lod_level | if parent_in_frustum { 512 } else {0}, Ordering::SeqCst);
     }
 
     /// A helper method to create a new quad tree node and queue it to the geometry provider.
@@ -699,7 +705,7 @@ impl<'a> LODSelectHelper<'a> {
             * node.transform;
 
         let current_split_depth = *self.split_distances.get(location.lod_level).unwrap_or(&0.0);
-        let previous_split_depth = *self.split_distances.get(location.lod_level - 1).unwrap_or(&current_split_depth);
+        let previous_split_depth = *self.split_distances.get(location.lod_level.wrapping_sub(1)).unwrap_or(&current_split_depth);
         let split_depth = current_split_depth + (previous_split_depth - current_split_depth) * 0.9;
 
         self.result.push_back(VisibleNode {

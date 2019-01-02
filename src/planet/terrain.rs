@@ -70,6 +70,16 @@ impl TerrainLayer {
         self
     }
 
+    pub fn temp_channels(&self) -> usize {
+        match &self.func {
+            TerrainFunction::Children { op: _, children } =>
+                children.iter().map(|child| child.temp_channels() ).max().unwrap_or(0) +
+                    if children.len() > 1 { 1 } else { 0 },
+            TerrainFunction::Constant(_) => 0,
+            TerrainFunction::Noise(_) => 0,
+        }
+    }
+
     pub fn compute_height(&self, dir: &Vector3<f32>) -> f32 {
         match &self.func {
             TerrainFunction::Children { op, children } => {
