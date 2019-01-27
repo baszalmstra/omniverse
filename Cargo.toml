@@ -22,6 +22,8 @@ imgui-glium-renderer = "0.0.21"
 imgui-glutin-support = "0.0.21"
 simdnoise = "2.3"
 num_cpus = "1.0"
+notify = "4.0"
+pathdiff="0.1"
 
 [lib]
 name = "omniverse"

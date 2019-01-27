@@ -3,7 +3,7 @@ extern crate log;
 extern crate glium;
 extern crate pretty_env_logger;
 
-
+extern crate notify;
 extern crate nalgebra;
 extern crate omniverse;
 
@@ -17,6 +17,11 @@ use omniverse::planet;
 use omniverse::timeline;
 use omniverse::ui;
 use omniverse::transform::{Transform, Transformable};
+use notify::{Watcher, RecursiveMode, watcher};
+use std::sync::mpsc::channel;
+use std::time::Duration;
+use std::path::PathBuf;
+use std::env;
 
 fn create_generator(planet_desc: planet::Description) -> Result<planet::ThreadpoolGeometryProvider<planet::Generator>, Box<std::error::Error>> {
     let terrain_str = fs::read_to_string("resources/terrain.yaml")?;
@@ -59,6 +64,14 @@ fn main() {
         planet::Renderer::new(&display, planet_desc.clone(), generator)
             .expect("Could not instantiate renderer");
 
+    // Create a channel to receive file modification events
+    let (tx, rx) = channel();
+    let mut watcher = watcher(tx, Duration::from_millis(10)).unwrap();
+    let current_directory = env::current_dir().unwrap();
+    let mut resources_directory = current_directory.clone();
+    resources_directory.push("resources");
+    watcher.watch(resources_directory.as_path().to_str().unwrap(), RecursiveMode::Recursive).unwrap();
+
     let mut camera_controller = CameraController::new();
 
     let mut closed = false;
@@ -93,6 +106,30 @@ fn main() {
 
         frame.finish().unwrap();
 
+        while let Ok(event) = rx.try_recv() {
+            let mut file_modified = |path:PathBuf| {
+                if let Some(diff) = pathdiff::diff_paths(path.as_path(), resources_directory.as_path()) {
+                    match diff.as_path().to_str().unwrap() {
+                        "terrain.yaml" => {
+                            match create_generator(planet_desc.clone()) {
+                                Ok(generator) => {
+                                    planet_renderer.set_generator(generator);
+                                    info!("Reloaded planet description from file")
+                                },
+                                Err(err) =>error!("Error reloading planet description: {}", err),
+                            };
+                        }
+                        _ => {}
+                    }
+                }
+            };
+            match event {
+                notify::DebouncedEvent::Write(path) => file_modified(path),
+                notify::DebouncedEvent::Create(path) => file_modified(path),
+                _ => {}
+            }
+        }
+
         events_loop.poll_events(|ev| {
             ui.handle_event(&ev);
 
@@ -100,25 +137,7 @@ fn main() {
                 glutin::Event::WindowEvent { event, .. } => match event {
                     glutin::WindowEvent::CloseRequested => closed = true,
                     glutin::WindowEvent::KeyboardInput { input, .. } => {
-                        use glium::glutin::ElementState::{Pressed};
-                        use glium::glutin::VirtualKeyCode::*;
-
                         camera_controller.key_event(&input);
-
-                        // If the R key is pressed reload the geometry of the planet
-                        if input.state == Pressed {
-                            if let Some(key) = input.virtual_keycode {
-                                if key == R {
-                                    match create_generator(planet_desc.clone()) {
-                                        Ok(generator) => {
-                                            planet_renderer.set_generator(generator);
-                                            info!("Reloaded planet description from file")
-                                        },
-                                        Err(err) =>error!("Error reloading planet description: {}", err),
-                                    };
-                                }
-                            }
-                        }
                     }
                     glutin::WindowEvent::MouseInput {
                         state: glutin::ElementState::Pressed,
