@@ -1,8 +1,8 @@
 add:
-- constant: 10
+- constant: -200
 - clamp:
     min: 400
-    max: 1000
+    max: 2000
     value:
       multiply:
       - constant: 50000

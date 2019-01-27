@@ -20,6 +20,37 @@ impl Generator {
         }
     }
 
+    fn compute_color_from_height(&self, height: f32) -> Vector3<f32> {
+        let mapping = [
+            (200.0, Vector3::new(0.0, 0.0, 0.6)),
+            (250.0, Vector3::new(0.0, 0.5, 0.0)),
+            (700.0, Vector3::new(0.0, 0.5, 0.0)),
+            (1000.0, Vector3::new(0.5, 0.5, 0.5)),
+        ];
+
+        let mut entry_low = &mapping[0];
+        let mut entry_hi = &mapping[0];
+        for entry in &mapping {
+            entry_low = entry;
+
+            let (entry_height, _entry_color) = entry;
+            if height < *entry_height {
+                break;
+            }
+
+            entry_hi = entry;
+        }
+
+        let (height_low, color_low) = entry_low;
+        let (height_hi, color_hi) = entry_hi;
+
+        let a = f32::max(0.0, f32::min(1.0, (height - height_low) / (height_hi - height_low)));
+
+        let color = (1.0 - a) * color_low + a * color_hi;
+
+        color
+    }
+
     #[inline]
     //fn compute_vertex(&self, x: f64, y: f64, patch: &PatchLocation) -> Point3<f64> {
     fn compute_vertex(&self, oriented_position:Vector3<f64>) -> Point3<f64> {
@@ -39,10 +70,7 @@ impl Generator {
 
         let position = Point3::from_coordinates(dir * (self.description.radius + height as f64));
 
-        let mut color = Vector3::new(0.0, 1.0, 0.0);
-        if height < 500.0 {
-            color = Vector3::new(0.0, 0.0, 1.0);
-        }
+        let color = self.compute_color_from_height(height);
 
         (position, color)
     }
