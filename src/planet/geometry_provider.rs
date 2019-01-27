@@ -81,6 +81,7 @@ impl Into<PatchLocation> for Face {
 pub struct PatchGeometry {
     pub positions: Vec<Point3<f64>>,
     pub normals: Vec<Vector3<f64>>,
+    pub colors: Vec<Vector3<f32>>,
 }
 
 pub trait GeometryProvider {

@@ -75,6 +75,7 @@ impl NodeGeometry {
                     x as f32 / (VERTICES_PER_PATCH - 1) as f32,
                     y as f32 / (VERTICES_PER_PATCH - 1) as f32,
                 ];
+                vertices[i].color = [geometry.colors[i].x, geometry.colors[i].y, geometry.colors[i].z];
             }
 
             for (i, normal) in geometry.normals.iter().enumerate() {
