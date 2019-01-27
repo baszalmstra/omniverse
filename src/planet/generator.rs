@@ -35,14 +35,9 @@ impl Generator {
         let dir = morph(oriented_position);
 
         let dir32 = Vector3::new(dir.x as f32, dir.y as f32, dir.z as f32);
-        let height : f32 = self.terrain.compute_height(&dir32);
+        let (height, color) = self.terrain.compute_height_and_color(&dir32);
 
         let position = Point3::from_coordinates(dir * (self.description.radius + height as f64));
-
-        let mut color = Vector3::new(0.0, 1.0, 0.0);
-        if height < 500.0 {
-            color = Vector3::new(0.0, 0.0, 1.0);
-        }
 
         (position, color)
     }
