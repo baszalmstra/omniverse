@@ -2,10 +2,10 @@ clamp:
   min: 0
   value:
     add:
-      - constant: -6950
+      - constant: -496500
       - multiply:
-        - constant: 7500
+        - constant: 500000
         - noiseFBM:
-            frequency: 80
+            frequency: 5
             persistence: 0.6
             octaves: 11

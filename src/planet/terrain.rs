@@ -111,8 +111,8 @@ impl TerrainLayer {
     fn compute_color_from_height(&self, height: f32) -> Vector3<f32> {
         // TODO: get this mapping from the terrain parameter file
         let mapping = [
-            (200.0, Vector3::new(0.0, 0.0, 0.6)),
-            (250.0, Vector3::new(0.0, 0.5, 0.0)),
+            (0.0, Vector3::new(0.0, 0.0, 0.6)),
+            (50.0, Vector3::new(0.0, 0.5, 0.0)),
             (700.0, Vector3::new(0.0, 0.5, 0.0)),
             (1000.0, Vector3::new(0.5, 0.5, 0.5)),
         ];
