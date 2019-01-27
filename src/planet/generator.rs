@@ -31,6 +31,22 @@ impl Generator {
         Point3::from_coordinates(dir * (self.description.radius + height as f64))
     }
 
+    fn compute_vertex_and_color(&self, oriented_position:Vector3<f64>) -> (Point3<f64>, Vector3<f32>) {
+        let dir = morph(oriented_position);
+
+        let dir32 = Vector3::new(dir.x as f32, dir.y as f32, dir.z as f32);
+        let height : f32 = self.terrain.compute_height(&dir32);
+
+        let position = Point3::from_coordinates(dir * (self.description.radius + height as f64));
+
+        let mut color = Vector3::new(0.0, 1.0, 0.0);
+        if height < 500.0 {
+            color = Vector3::new(0.0, 0.0, 1.0);
+        }
+
+        (position, color)
+    }
+
     fn compute_normal(&self, oriented_position:Vector3<f64>, tangent:&Vector3<f64>, binormal:&Vector3<f64>) -> Vector3<f64> {
         let eps = 0.001;
 
@@ -48,9 +64,11 @@ impl Generator {
 
 impl GeometryProvider for Generator {
     fn compute_geometry(&self, patch: PatchLocation) -> PatchGeometry {
-        // Generate vertices
+        // Generate vertex positions and colors
         let vertex_step = patch.size / (VERTICES_PER_PATCH as f64 - 1.0);
         let mut positions: Vec<Point3<f64>> =
+            Vec::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH);
+        let mut colors: Vec<Vector3<f32>> =
             Vec::with_capacity(VERTICES_PER_PATCH * VERTICES_PER_PATCH);
 
         let corner = patch.face.orientation() * Vector3::new(patch.offset.x - 0.5, patch.offset.y - 0.5, 0.5) * 2.0;
@@ -60,7 +78,9 @@ impl GeometryProvider for Generator {
         for y in 0..VERTICES_PER_PATCH {
             for x in 0..VERTICES_PER_PATCH {
                 let local_position = corner + tangent*(vertex_step * 2.0 * x as f64) + binormal*(vertex_step * 2.0 * y as f64);
-                positions.push(self.compute_vertex(local_position) );
+                let (position, color) = self.compute_vertex_and_color(local_position);
+                positions.push(position);
+                colors.push(color);
             }
         }
 
@@ -75,7 +95,7 @@ impl GeometryProvider for Generator {
             }
         }
 
-        PatchGeometry { positions, normals }
+        PatchGeometry { positions, normals, colors }
     }
 
     fn position_at(&self, face: Face, offset: Point2<f64>) -> Point3<f64> {

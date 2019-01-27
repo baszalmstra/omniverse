@@ -109,6 +109,7 @@ impl<T: planet::AsyncGeometryProvider + planet::GeometryProvider> Renderer<T> {
                 in vec2 position_morph_target;
                 in vec2 local_texcoords;
                 in vec2 local_texcoords_morph_target;
+                in vec3 color;
 
                 in uint atlas_index;
                 in uint lod_level;
@@ -184,7 +185,7 @@ impl<T: planet::AsyncGeometryProvider + planet::GeometryProvider> Renderer<T> {
                     Texcoords = morphed_local_texcoords;
                     AtlasIndex = atlas_index;
                     //Color = vec4(mix(random_colors[lod_level], random_colors[lod_level+1], morph_factor), 1);
-                    Color = vec4(1,1,1,1);
+                    Color = vec4(color,1);
                     MorphFactor = morph_factor;
                 }
             "#;
