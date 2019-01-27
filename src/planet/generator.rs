@@ -4,16 +4,19 @@ use crate::planet::geometry_provider::{PatchGeometry, PatchLocation};
 use crate::planet::GeometryProvider;
 use nalgebra::{Point3, Vector3, Point2};
 use crate::planet::Face;
+use crate::planet::TerrainLayer;
 
 #[derive(Clone)]
 pub struct Generator {
     description: planet::Description,
+    terrain: TerrainLayer,
 }
 
 impl Generator {
-    pub fn new(description: planet::Description) -> Generator {
+    pub fn new(description: planet::Description, terrain: TerrainLayer) -> Generator {
         Generator {
-            description
+            description,
+            terrain
         }
     }
 
@@ -23,7 +26,7 @@ impl Generator {
         let dir = morph(oriented_position);
 
         let dir32 = Vector3::new(dir.x as f32, dir.y as f32, dir.z as f32);
-        let height : f32 = self.description.terrain.compute_height(&dir32);
+        let height : f32 = self.terrain.compute_height(&dir32);
 
         Point3::from_coordinates(dir * (self.description.radius + height as f64))
     }

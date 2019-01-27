@@ -18,6 +18,14 @@ use omniverse::timeline;
 use omniverse::ui;
 use omniverse::transform::{Transform, Transformable};
 
+fn create_generator(planet_desc: planet::Description) -> Result<planet::ThreadpoolGeometryProvider<planet::Generator>, Box<std::error::Error>> {
+    let terrain_str = fs::read_to_string("resources/terrain.yaml")?;
+    let terrain_desc = serde_yaml::from_str(&terrain_str)?;
+
+    let geometry_provider = planet::Generator::new(planet_desc, terrain_desc );
+    Ok(planet::ThreadpoolGeometryProvider::new(geometry_provider))
+}
+
 fn main() {
     use glium::glutin;
     use glium::Surface;
@@ -44,16 +52,11 @@ fn main() {
     camera.set_far(200_00000.0);
     camera.pitch(std::f64::consts::PI*0.5);
 
-    let terrain_str = fs::read_to_string("resources/terrain.json").expect("Missing resource file: resources/terrain.json");
-    let terrain_desc = serde_json::from_str(&terrain_str).expect("Corrupt JSON in file: resources/terrain.json");
-
-    let planet_desc = planet::Description { radius: 400_000.0, terrain: terrain_desc };
+    let planet_desc = planet::Description { radius: 400_000.0 };
     let planet_transform = Transform::identity();
-
-    let geometry_provider = planet::Generator::new(planet_desc.clone());
-    let async_geometry_provider = planet::ThreadpoolGeometryProvider::new(geometry_provider);
+    let generator = create_generator(planet_desc.clone()).unwrap();
     let mut planet_renderer =
-        planet::Renderer::new(&display, planet_desc.clone(), async_geometry_provider)
+        planet::Renderer::new(&display, planet_desc.clone(), generator)
             .expect("Could not instantiate renderer");
 
     let mut camera_controller = CameraController::new();
@@ -97,7 +100,25 @@ fn main() {
                 glutin::Event::WindowEvent { event, .. } => match event {
                     glutin::WindowEvent::CloseRequested => closed = true,
                     glutin::WindowEvent::KeyboardInput { input, .. } => {
+                        use glium::glutin::ElementState::{Pressed};
+                        use glium::glutin::VirtualKeyCode::*;
+
                         camera_controller.key_event(&input);
+
+                        // If the R key is pressed reload the geometry of the planet
+                        if input.state == Pressed {
+                            if let Some(key) = input.virtual_keycode {
+                                if key == R {
+                                    match create_generator(planet_desc.clone()) {
+                                        Ok(generator) => {
+                                            planet_renderer.set_generator(generator);
+                                            info!("Reloaded planet description from file")
+                                        },
+                                        Err(err) =>error!("Error reloading planet description: {}", err),
+                                    };
+                                }
+                            }
+                        }
                     }
                     glutin::WindowEvent::MouseInput {
                         state: glutin::ElementState::Pressed,

@@ -1,11 +1,11 @@
 use super::Vertex;
-use core::mem;
 use crate::planet;
-use nalgebra::{Matrix4, Point3, UnitQuaternion};
-use ncollide::bounding_volume::{AABB, AABB3};
 use crate::planet::quad_tree::HasAABB;
 use crate::planet::renderer::node_backing::NodeBacking;
 use crate::planet::renderer::node_backing::NodeId;
+use core::mem;
+use nalgebra::{Matrix4, Point3, UnitQuaternion};
+use ncollide::bounding_volume::{AABB, AABB3};
 use std::sync::Arc;
 
 pub enum Node {
@@ -47,7 +47,8 @@ impl NodeGeometry {
         let mut heights: [f32; VERTICES_PER_PATCH * VERTICES_PER_PATCH];
         let mut vertices: [Vertex; VERTICES_PER_PATCH * VERTICES_PER_PATCH];
         let mut normals: [(f32, f32, f32); NORMALS_PER_PATCH * NORMALS_PER_PATCH];
-        let mut normals_low_detail:[(f32,f32,f32); (NORMALS_PER_PATCH/2)*(NORMALS_PER_PATCH/2)];
+        let mut normals_low_detail: [(f32, f32, f32);
+            (NORMALS_PER_PATCH / 2) * (NORMALS_PER_PATCH / 2)];
 
         unsafe {
             heights = mem::uninitialized();
@@ -83,7 +84,8 @@ impl NodeGeometry {
                 normals[i] = (normal.x as f32, normal.y as f32, normal.z as f32);
 
                 if x % 2 == 0 && y % 2 == 0 {
-                    normals_low_detail[(y/2)*(NORMALS_PER_PATCH/2)+(x/2)] = (normal.x as f32, normal.y as f32, normal.z as f32);
+                    normals_low_detail[(y / 2) * (NORMALS_PER_PATCH / 2) + (x / 2)] =
+                        (normal.x as f32, normal.y as f32, normal.z as f32);
                 }
             }
         }

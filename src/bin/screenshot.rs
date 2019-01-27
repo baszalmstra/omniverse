@@ -73,16 +73,16 @@ fn main() {
         serde_json::from_str(&screenshots_content).expect("Could not parse screenshots.json");
 
 
-    let terrain_str = std::fs::read_to_string("resources/terrain.json").expect("Missing resource file: resources/terrain.json");
-    let terrain_desc = serde_json::from_str(&terrain_str).expect("Corrupt JSON in file: resources/terrain.json");
+    let terrain_str = std::fs::read_to_string("resources/terrain.yaml").expect("Missing resource file: resources/terrain.yaml");
+    let terrain_desc = serde_yaml::from_str(&terrain_str).expect("Corrupt JSON in file: resources/terrain.yaml");
 
     let events_loop = glutin::EventsLoop::new();
     let display = create(&events_loop);
 
     // Initialize a planet
-    let planet_desc = planet::Description { radius: 400000.0, terrain: terrain_desc };
+    let planet_desc = planet::Description { radius: 400000.0 };
     let planet_transform = Transform::identity();
-    let geometry_provider = planet::Generator::new(planet_desc.clone());
+    let geometry_provider = planet::Generator::new(planet_desc.clone(), terrain_desc);
     let async_geometry_provider = planet::SyncGeometryProvider::new(geometry_provider);
     let mut planet_renderer =
         planet::Renderer::new(&display, planet_desc.clone(), async_geometry_provider)

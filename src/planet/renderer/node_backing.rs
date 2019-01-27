@@ -17,7 +17,7 @@ pub struct TextureAtlas<P: PixelValue> {
     pub texture: Texture2dArray,
     upload_buffer: PixelBuffer<P>,
     pixels_per_patch: u32,
-    mip_levels: u32
+    mip_levels: u32,
 }
 
 impl<T: PixelValue> TextureAtlas<T> {
@@ -32,14 +32,18 @@ impl<T: PixelValue> TextureAtlas<T> {
             texture: Texture2dArray::empty_with_format(
                 facade,
                 format,
-                if mip_levels == 1 { MipmapsOption::NoMipmap } else { MipmapsOption::EmptyMipmapsMax(mip_levels) },
+                if mip_levels == 1 {
+                    MipmapsOption::NoMipmap
+                } else {
+                    MipmapsOption::EmptyMipmapsMax(mip_levels)
+                },
                 pixels_per_patch as u32,
                 pixels_per_patch as u32,
                 patch_count as u32,
             )?,
             pixels_per_patch: pixels_per_patch as u32,
             upload_buffer: PixelBuffer::new_empty(facade, pixels_per_patch * pixels_per_patch),
-            mip_levels
+            mip_levels,
         })
     }
 
@@ -48,14 +52,17 @@ impl<T: PixelValue> TextureAtlas<T> {
             ((self.pixels_per_patch >> mip_level) * (self.pixels_per_patch >> mip_level)) as usize,
             data.len()
         );
-        self.upload_buffer.slice_mut(0..data.len()).unwrap().write(data);
+        self.upload_buffer
+            .slice_mut(0..data.len())
+            .unwrap()
+            .write(data);
         self.texture
             .mipmap(mip_level)
             .unwrap()
             .raw_upload_from_pixel_buffer(
                 self.upload_buffer.as_slice(),
-                0..self.pixels_per_patch>>mip_level,
-                0..self.pixels_per_patch>>mip_level,
+                0..self.pixels_per_patch >> mip_level,
+                0..self.pixels_per_patch >> mip_level,
                 id.0 as u32..id.0 as u32 + 1,
             );
         self.upload_buffer.invalidate();

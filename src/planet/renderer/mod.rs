@@ -16,7 +16,11 @@ mod vertex;
 
 pub use self::node::Node;
 pub use self::vertex::Vertex;
+use crate::culling::Classify;
 use crate::planet::geometry_provider::PatchLocation;
+use crate::planet::quad_tree::HasAABB;
+use crate::planet::renderer::node::NodeGeometry;
+use crate::planet::renderer::node_backing::NodeBacking;
 use glium::index::DrawCommandIndices;
 use glium::{
     backend::{Context, Facade},
@@ -24,14 +28,10 @@ use glium::{
     index::{IndicesSource, PrimitiveType},
     IndexBuffer, Program, Surface, VertexBuffer,
 };
-use crate::planet::quad_tree::HasAABB;
-use crate::planet::renderer::node_backing::NodeBacking;
 use std::cell::RefCell;
-use std::collections::VecDeque;
-use crate::planet::renderer::node::NodeGeometry;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
-use crate::culling::Classify;
 
 #[derive(Deserialize)]
 #[serde(default)]
@@ -91,7 +91,7 @@ struct Face {
     pub root: QuadTree<Node>,
 }
 
-impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
+impl<T: planet::AsyncGeometryProvider + planet::GeometryProvider> Renderer<T> {
     pub fn new<F: ?Sized + Facade>(
         facade: &F,
         description: Description,
@@ -293,7 +293,10 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
         ) -> Face {
             Face {
                 face,
-                root: QuadTree::new(Node::WithGeometry(NodeGeometry::new(backing, &geometry_provider.compute_geometry(face.into())))),
+                root: QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                    backing,
+                    &geometry_provider.compute_geometry(face.into()),
+                ))),
             }
         }
 
@@ -324,7 +327,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
                 facade,
                 MAX_PATCH_COUNT,
             )?),
-            pending_geometry_requests: PendingStreamingNodesMap::new()
+            pending_geometry_requests: PendingStreamingNodesMap::new(),
         })
     }
 
@@ -332,7 +335,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
     /// * `frame` - The frame to render to
     /// * `frustum` - The frustum that represents the view to render from in world space.
     /// * `planet_world_transform` - The transformation of the planet relative to the world.
-    pub fn draw<S:Surface>(
+    pub fn draw<S: Surface>(
         &self,
         frame: &mut S,
         frustum: &Frustum,
@@ -346,9 +349,10 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
         // basically `frustum_planet` but without the translation. This is because the translation
         // of the camera is already encoded in the patches themselves. This way we get maximum
         // precision near the camera position.
-        let projection_frustum = frustum.with_transform(
-            Transform::from_parts(Translation3::identity(), frustum_planet.transform.rotation)
-        );
+        let projection_frustum = frustum.with_transform(Transform::from_parts(
+            Translation3::identity(),
+            frustum_planet.transform.rotation,
+        ));
 
         // Construct the cone for horizon culling
         let horizon_cone = horizon_culling::Cone::new(
@@ -358,9 +362,8 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
 
         // Query all faces for visible nodes
         let visible_nodes: VecDeque<VisibleNode> = {
-            let mut lod_select: LODSelectHelper = LODSelectHelper::new(&frustum_planet,
-                                                                       &horizon_cone,
-                                                                       &self.split_distances);
+            let mut lod_select: LODSelectHelper =
+                LODSelectHelper::new(&frustum_planet, &horizon_cone, &self.split_distances);
             for face in self.faces.iter() {
                 lod_select.select(&face.root, &face.face.into());
             }
@@ -487,7 +490,7 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
         }
 
         // Process streaming results
-        let backing =  &mut self.backing;
+        let backing = &mut self.backing;
         let pending_requests = &mut self.pending_geometry_requests;
         self.geometry_provider.receive_all(|id, data| {
             if let Some(node) = pending_requests.get(&id) {
@@ -498,6 +501,21 @@ impl<T: planet::AsyncGeometryProvider+planet::GeometryProvider> Renderer<T> {
                 pending_requests.remove(&id);
             }
         });
+    }
+
+    pub fn set_generator(&mut self, geometry_provider: T,) {
+        self.geometry_provider = geometry_provider;
+        for face in self.faces.iter_mut() {
+            remove_face(
+                &mut self.backing,
+                &mut face.root,
+                &mut self.pending_geometry_requests,
+            );
+            face.root = QuadTree::new(Node::WithGeometry(NodeGeometry::new(
+                &mut self.backing,
+                &self.geometry_provider.compute_geometry(face.face.into()),
+            )));
+        }
     }
 
     /// Returns the context corresponding to this Renderer.
@@ -525,10 +543,13 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
 
     // If this node contains geometry check if it needs to be split.
     if let Node::WithGeometry(ref geometry) = node.content {
-
         // If the node is out of range of it's split distance, remove it's children.
         let frustum_pos = Point3::from_coordinates(frustum_planet.transform.translation.vector);
-        if !in_range(&geometry.bounding_box(), &frustum_pos, split_distances[location.lod_level]) {
+        if !in_range(
+            &geometry.bounding_box(),
+            &frustum_pos,
+            split_distances[location.lod_level],
+        ) {
             merge(backing, node, pending_requests);
             return;
         }
@@ -538,8 +559,8 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
         // Otherwise; ensure that this node has children resident
         if !node.has_children() {
             node.children = Some([
-                request_node(geometry_provider, pending_requests,location.top_left()),
-                request_node(geometry_provider, pending_requests,location.top_right()),
+                request_node(geometry_provider, pending_requests, location.top_left()),
+                request_node(geometry_provider, pending_requests, location.top_right()),
                 request_node(geometry_provider, pending_requests, location.bottom_left()),
                 request_node(geometry_provider, pending_requests, location.bottom_right()),
             ])
@@ -560,7 +581,10 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
             }
         }
     } else if let Node::Pending(_, ref token) = node.content {
-        token.priority.store(location.lod_level | if parent_in_frustum { 512 } else {0}, Ordering::SeqCst);
+        token.priority.store(
+            location.lod_level | if parent_in_frustum { 512 } else { 0 },
+            Ordering::SeqCst,
+        );
     }
 
     /// A helper method to create a new quad tree node and queue it to the geometry provider.
@@ -570,29 +594,42 @@ fn ensure_resident_children<T: planet::AsyncGeometryProvider>(
         location: PatchLocation,
     ) -> Box<QuadTree<Node>> {
         let (token, id) = geometry_provider.queue(location);
-        token.priority.store(location.lod_level+1, Ordering::SeqCst);
+        token
+            .priority
+            .store(location.lod_level + 1, Ordering::SeqCst);
         let node_ptr = Box::into_raw(Box::new(QuadTree::new(Node::Pending(id, token))));
         pending_requests.insert(id, node_ptr);
         unsafe { Box::from_raw(node_ptr) }
     }
 }
 
+/// Removes all state associated with the planet state
+fn remove_face(
+    backing: &mut NodeBacking,
+    node: &mut QuadTree<Node>,
+    pending_requests: &mut PendingStreamingNodesMap,
+) {
+    merge(backing, node, pending_requests);
+    match &node.content {
+        Node::Pending(id, token) => {
+            token.priority.store(0, Ordering::SeqCst); // Priority 0 = cancelled
+            pending_requests.remove(&id);
+        }
+        Node::WithGeometry(geometry) => {
+            backing.release(geometry.node_id);
+        }
+    }
+}
+
 /// Given a QuadTree Node, destroy all its children and clean up after them.
-fn merge(backing: &mut NodeBacking,
-         node: &mut QuadTree<Node>,
-         pending_requests: &mut PendingStreamingNodesMap) {
+fn merge(
+    backing: &mut NodeBacking,
+    node: &mut QuadTree<Node>,
+    pending_requests: &mut PendingStreamingNodesMap,
+) {
     if let Some(ref mut children) = node.children {
         for node in children.iter_mut() {
-            merge(backing, node, pending_requests);
-            match &node.content {
-                Node::Pending(id, token) => {
-                    token.priority.store(0, Ordering::SeqCst); // Priority 0 = cancelled
-                    pending_requests.remove(&id);
-                },
-                Node::WithGeometry(geometry) => {
-                    backing.release(geometry.node_id);
-                },
-            }
+            remove_face(backing, node, pending_requests);
         }
     }
     node.children = None;
@@ -655,7 +692,7 @@ struct LODSelectHelper<'a> {
     frustum_pos: Point3<f64>,
     cone: horizon_culling::Cone<f64>,
     split_distances: &'a [f64],
-    result: VecDeque<VisibleNode<'a>>
+    result: VecDeque<VisibleNode<'a>>,
 }
 
 impl<'a> LODSelectHelper<'a> {
@@ -663,15 +700,17 @@ impl<'a> LODSelectHelper<'a> {
     /// * `frustum_planet` - The frustum relative to the planet
     /// * `cone` - The horizon culling cone relative to the planet
     /// * `split_distances` - For every lod level at which distance its children should be used instead.
-    pub fn new(frustum_planet: &Frustum,
+    pub fn new(
+        frustum_planet: &Frustum,
         cone: &horizon_culling::Cone<f64>,
-        split_distances: &'a [f64]) -> LODSelectHelper<'a> {
+        split_distances: &'a [f64],
+    ) -> LODSelectHelper<'a> {
         LODSelectHelper {
             frustum_planet: frustum_planet.clone(),
             frustum_pos: Point3::from_coordinates(frustum_planet.transform.translation.vector),
             cone: cone.clone(),
             split_distances,
-            result: VecDeque::new()
+            result: VecDeque::new(),
         }
     }
 
@@ -691,21 +730,27 @@ impl<'a> LODSelectHelper<'a> {
     }
 
     /// Adds only a part of the geometry of the node to the result
-    fn add_part(&mut self, node: &'a NodeGeometry, location: &PatchLocation, child: quad_tree::Child) {
+    fn add_part(
+        &mut self,
+        node: &'a NodeGeometry,
+        location: &PatchLocation,
+        child: quad_tree::Child,
+    ) {
         self.add(node, location, VisibleNodePart::Child(child))
     }
 
     /// Adds a specific part of the geometry of a node to the result. Use the `add_whole` and
     /// `add_part` methods for easier use.
     fn add(&mut self, node: &'a NodeGeometry, location: &PatchLocation, part: VisibleNodePart) {
-        let node_camera = Translation3::from_vector(
-            node.origin - self.frustum_pos
-        )
+        let node_camera = Translation3::from_vector(node.origin - self.frustum_pos)
             .to_homogeneous()
             * node.transform;
 
         let current_split_depth = *self.split_distances.get(location.lod_level).unwrap_or(&0.0);
-        let previous_split_depth = *self.split_distances.get(location.lod_level.wrapping_sub(1)).unwrap_or(&current_split_depth);
+        let previous_split_depth = *self
+            .split_distances
+            .get(location.lod_level.wrapping_sub(1))
+            .unwrap_or(&current_split_depth);
         let split_depth = current_split_depth + (previous_split_depth - current_split_depth) * 0.9;
 
         self.result.push_back(VisibleNode {
@@ -718,14 +763,15 @@ impl<'a> LODSelectHelper<'a> {
     }
 
     /// Recurse into the specified node adding all visible nodes to the LOD selection result.
-    fn recurse(&mut self,
-               node: &'a QuadTree<Node>,
-               location: &PatchLocation,
-               parent_completely_in_frustum: bool) -> LODSelectResult {
+    fn recurse(
+        &mut self,
+        node: &'a QuadTree<Node>,
+        location: &PatchLocation,
+        parent_completely_in_frustum: bool,
+    ) -> LODSelectResult {
         use crate::culling::{Classify, Containment};
 
         if let Node::WithGeometry(ref geometry) = node.content {
-
             // Determine whether this node is at least intersecting the frustum.
             let frustum_containment = if parent_completely_in_frustum {
                 Containment::Inside
@@ -745,21 +791,25 @@ impl<'a> LODSelectHelper<'a> {
             // Check if the node is within the split distance of its parent lod level. If this is not
             // the case the geometry of the parent is used instead of the high detailed version.
             // Don't do this for the highest (lowest detail) lod level because it doesn't have a parent.
-            if location.lod_level > 0 && !in_range(
-                &geometry.bounding_box(),
-                &self.frustum_pos,
-                self.split_distances[location.lod_level - 1],
-            ) {
+            if location.lod_level > 0
+                && !in_range(
+                    &geometry.bounding_box(),
+                    &self.frustum_pos,
+                    self.split_distances[location.lod_level - 1],
+                )
+            {
                 return LODSelectResult::OutOfRange;
             }
 
             // Check if this node should be split into it's children by checking the distance from the
             // camera to the node. If it is within split distance traverse its children.
-            if location.lod_level < self.split_distances.len() &&
-                in_range(
-                &geometry.bounding_box(),
-                &self.frustum_pos,
-                self.split_distances[location.lod_level]) {
+            if location.lod_level < self.split_distances.len()
+                && in_range(
+                    &geometry.bounding_box(),
+                    &self.frustum_pos,
+                    self.split_distances[location.lod_level],
+                )
+            {
                 let mut children_selection_results = [LODSelectResult::Undefined; 4];
 
                 // Recurse into the children capturing the selection result.
@@ -768,7 +818,7 @@ impl<'a> LODSelectHelper<'a> {
                         children_selection_results[child.index()] = self.recurse(
                             &(*children)[child.index()],
                             &location.split(*child),
-                            frustum_containment == Containment::Inside
+                            frustum_containment == Containment::Inside,
                         );
                     }
                 }
@@ -788,10 +838,9 @@ impl<'a> LODSelectHelper<'a> {
                 // range, fill it in with geometry from the parent node.
                 for child in quad_tree::Child::values()
                     .filter(|c| children_selection_results[c.index()].is_not_selected())
-                    {
-                        self.add_part(geometry, location, *child);
-                    }
-
+                {
+                    self.add_part(geometry, location, *child);
+                }
 
                 if children_selection_results
                     .iter()

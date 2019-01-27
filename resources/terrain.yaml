@@ -1,13 +1,13 @@
 add:
 - constant: 10
 - clamp:
-    min: 0
+    min: 400
     max: 1000
     value:
       multiply:
       - constant: 50000
       - noiseTurbulence:
           freq: 7.5
-          lacunarity: 4
-          gain: 0.67
+          lacunarity: 3
+          gain: 0.8
           octaves: 3
