@@ -31,8 +31,8 @@ pub enum TerrainLayer {
         return_type: CellReturnType,
         jitter: f32
     },
-    NoiseFBM { freq: f32, lacunarity: f32, gain: f32, octaves: u8 },
-    NoiseRidge { freq: f32, lacunarity: f32, gain: f32, octaves: u8 },
+    NoiseFBM { frequency: f32, persistence: f32, octaves: usize },
+    NoiseRidge { frequency: f32, persistence: f32, octaves: usize },
     NoiseSimplex,
     NoiseTurbulence { freq: f32, lacunarity: f32, gain: f32, octaves: u8 }
 }
@@ -65,11 +65,33 @@ impl TerrainLayer {
             TerrainLayer::NoiseCellular { distance_fn, return_type, jitter } => {
                 simdnoise::scalar::cellular_3d(dir.x, dir.y, dir.z, *distance_fn, *return_type, *jitter)
             },
-            TerrainLayer::NoiseFBM { freq, lacunarity, gain, octaves } => {
-                simdnoise::scalar::fbm_3d(dir.x, dir.y, dir.z, *freq, *lacunarity, *gain, *octaves)
+            TerrainLayer::NoiseFBM { frequency: freq, persistence, octaves } => {
+                let mut result = 0.0;
+                let mut max_amplitude = 0.0;
+                let mut amplitide = 1.0;
+                let mut frequency = *freq;
+                for _ in 0..*octaves {
+                    result += ((1.0 - simdnoise::scalar::simplex_3d(dir.x*frequency, dir.y*frequency, dir.z*frequency).abs()) * 2.0 - 1.0) * amplitide;
+                    frequency *= 2.0;
+                    max_amplitude += amplitide;
+                    amplitide *= persistence;
+                }
+
+                result/max_amplitude
             },
-            TerrainLayer::NoiseRidge { freq, lacunarity, gain, octaves } => {
-                simdnoise::scalar::ridge_3d(dir.x, dir.y, dir.z, *freq, *lacunarity, *gain, *octaves)
+            TerrainLayer::NoiseRidge { frequency: freq, persistence, octaves } => {
+                let mut result = 0.0;
+                let mut max_amplitude = 0.0;
+                let mut amplitide = 1.0;
+                let mut frequency = *freq;
+                for _ in 0..*octaves {
+                    result += simdnoise::scalar::simplex_3d(dir.x*frequency, dir.y*frequency, dir.z*frequency) * amplitide;
+                    frequency *= 2.0;
+                    max_amplitude += amplitide;
+                    amplitide *= persistence;
+                }
+
+                result/max_amplitude
             },
             TerrainLayer::NoiseSimplex => {
                 simdnoise::scalar::simplex_3d(dir.x, dir.y, dir.z)

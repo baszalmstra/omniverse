@@ -48,7 +48,7 @@ impl Generator {
     }
 
     fn compute_normal(&self, oriented_position:Vector3<f64>, tangent:&Vector3<f64>, binormal:&Vector3<f64>) -> Vector3<f64> {
-        let eps = 0.001;
+        let eps = 0.000001;
 
         let px1 = self.compute_vertex(&oriented_position - tangent*eps);
         let px2 = self.compute_vertex(&oriented_position + tangent*eps);
