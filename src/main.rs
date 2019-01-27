@@ -69,7 +69,7 @@ fn main() {
     while !closed {
         timeline.next_frame();
 
-        camera_controller.tick(timeline.previous_frame_time(), &mut camera);
+        camera_controller.tick(timeline.previous_frame_time(), &mut camera, &planet_desc, &planet_transform);
 
         let mut frame = display.draw();
         let frame_size = frame.get_dimensions();

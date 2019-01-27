@@ -1,9 +1,12 @@
 use crate::transform::Rotation;
+use crate::transform::Transform;
 use crate::transform::Transformable;
+use crate::planet;
+use glium::glutin;
 use glium::glutin::KeyboardInput;
 use nalgebra::Vector2;
 use nalgebra::Vector3;
-use glium::glutin;
+
 
 pub struct CameraController {
     movement_vector: Vector3<f64>,
@@ -18,7 +21,7 @@ impl CameraController {
             movement_vector: Vector3::new(0.0, 0.0, 0.0),
             //up_vector: Vector3::y_axis(),
             delta_mouse_position: Vector2::new(0.0, 0.0),
-            movement_speed: 50.0
+            movement_speed: 50.0,
         }
     }
 
@@ -83,19 +86,32 @@ impl CameraController {
 
     pub fn mouse_wheel_event(&mut self, delta: glutin::MouseScrollDelta) {
         match delta {
-            glutin::MouseScrollDelta::LineDelta(_,y) => {
-                const SPEED:f32 = 0.3;
+            glutin::MouseScrollDelta::LineDelta(_, y) => {
+                const SPEED: f32 = 0.3;
                 if y >= 0.0 {
-                    self.movement_speed = (self.movement_speed * (1.0 + y*SPEED)).max(1.0);
+                    self.movement_speed = (self.movement_speed * (1.0 + y * SPEED)).max(1.0);
                 } else {
-                    self.movement_speed = (self.movement_speed / (1.0 - y*SPEED)).max(1.0);
+                    self.movement_speed = (self.movement_speed / (1.0 - y * SPEED)).max(1.0);
                 }
             }
-            _=> {}
+            _ => {}
         }
     }
 
-    pub fn tick<T: Transformable>(&mut self, time_since_last_frame: f32, transform: &mut T) {
+    pub fn tick<T: Transformable>(
+        &mut self,
+        time_since_last_frame: f32,
+        transform: &mut T,
+        planet_desc: &planet::Description,
+        planet_transform: &Transform
+    ) {
+        // Determine movement speed based on distance to planet
+        let planet_distance = nalgebra::norm(&(transform.translation() - planet_transform.translation())) - planet_desc.radius;
+        self.movement_speed = self.movement_speed.min(50.0 + planet_distance as f32 * 10.0);
+
+        // Determine up vector w.r.t. the planet
+        let up_vec = nalgebra::normalize(&(transform.translation() - planet_transform.translation()));
+
         let translation = if self.movement_vector.dot(&self.movement_vector) > 0.0 {
             self.movement_vector * self.movement_speed as f64 * f64::from(time_since_last_frame)
         } else {
@@ -113,5 +129,20 @@ impl CameraController {
         self.delta_mouse_position = Vector2::new(0.0, 0.0);
         let local_translation = transform.transform() * translation;
         transform.translate_by(&local_translation);
+
+        // If we're close to the planet surface (i.e., within what we'll here call the 'correction_height'),
+        // straighten the camera by rotating the current camera up vector to the planet up vector
+        let correction_height = 0.2 * planet_desc.radius;
+
+        if planet_distance < correction_height {
+            // Let the correction speed depend on how far we're in the atmosphere. The closer we
+            // are to the planet surface, the faster the rotation will happen
+            let corr_speed = (1.0 - (planet_distance / correction_height)) * 10.0;
+            let local_up_vec = transform.transform().inverse() * up_vec;
+            transform.rotate_by(&Rotation::from_axis_angle(
+                &Vector3::z_axis(),
+                time_since_last_frame as f64 * -local_up_vec.x * corr_speed)
+            );
+        }
     }
 }
